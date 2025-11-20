@@ -90,6 +90,14 @@ Inspect a session summary (counts, timestamps).
 ### GET /api/health
 Health info for app, DB, and embedding provider.
 
+## Deploying to Railway
+- Required env: `DATABASE_URL`, `PORT` (optional, default 4000), `NODE_ENV=production`, `ADMIN_API_KEY`, rate-limit settings, scoring weights, and embedding config (`OPENAI_API_KEY`, `ENABLE_EMBEDDINGS`).
+- Steps:
+  1. Create a PostgreSQL instance on Railway and copy its `DATABASE_URL`.
+  2. Create a new service from this repo (Dockerfile provided) and set env vars.
+  3. Apply migrations on deploy: set start/command to `npx prisma migrate deploy && node dist/server.js` (or rely on `docker-entrypoint.sh` in the provided image).
+  4. pgvector is optional but recommended; enable the extension on your DB if you want semantic search scoring.
+
 ## Testing
 Run all tests:
 ```bash

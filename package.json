@@ -7,7 +7,9 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "prisma:generate": "prisma generate",
+    "migrate:deploy": "prisma migrate deploy"
   },
   "keywords": [
     "memory",

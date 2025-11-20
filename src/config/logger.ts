@@ -1,6 +1,18 @@
-type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+import { env } from './env';
+
+type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+
+const levelOrder: Record<LogLevel, number> = {
+  error: 0,
+  warn: 1,
+  info: 2,
+  debug: 3
+};
+
+const minLevel: LogLevel = env.isProduction ? 'info' : 'debug';
 
 const log = (level: LogLevel, message: string, meta?: Record<string, unknown>) => {
+  if (levelOrder[level] > levelOrder[minLevel]) return;
   const payload = {
     level,
     message,
