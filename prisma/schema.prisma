@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  externalId String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  memories   Memory[]
+}
+
+model Memory {
+  id             String    @id @default(uuid())
+  sessionId      String
+  session        Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  text           String
+  compressedText String
+  metadata       Json?
+  importanceScore Float
+  recencyScore    Float?
+  embedding       Float[]?
+  createdAt      DateTime  @default(now())
+  lastAccessedAt DateTime  @default(now())
+  isDeleted      Boolean   @default(false)
+
+  @@index([sessionId, createdAt])
+  @@index([sessionId, importanceScore])
+  @@index([sessionId, isDeleted])
+}
