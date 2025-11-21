@@ -8,7 +8,7 @@ const buckets = new Map<string, Counter>();
 export const rateLimiter = (req: Request, _res: Response, next: NextFunction) => {
   const now = Date.now();
   const windowStart = now - env.rateLimitWindowMs;
-  const key = req.ip;
+  const key = req.ip ?? req.socket.remoteAddress ?? 'unknown';
   const entry = buckets.get(key) || { count: 0, windowStart: now };
 
   if (entry.windowStart < windowStart) {
