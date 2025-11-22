@@ -34,5 +34,5 @@ model Memory {
   @@index([sessionId, createdAt])
   @@index([sessionId, importanceScore])
   @@index([sessionId, isDeleted])
-  @@index([embedding], name: "embedding_index", type: Hnsw)
+  @@index([embedding], name: "embedding_index", type: Ivfflat)
 }
