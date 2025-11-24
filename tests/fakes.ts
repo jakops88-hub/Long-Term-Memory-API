@@ -16,7 +16,7 @@ export class FakeMemoryRepository implements IMemoryRepository {
       metadata: (data.metadata as Prisma.JsonValue) ?? null,
       importanceScore: data.importanceScore,
       recencyScore: data.recencyScore ?? null,
-      embedding: data.embedding ?? null,
+      embedding: data.embedding ?? [],
       createdAt: new Date(),
       lastAccessedAt: new Date(),
       isDeleted: false

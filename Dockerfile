@@ -1,6 +1,9 @@
 FROM node:20-slim AS deps
 WORKDIR /app
 
+# Install system deps (OpenSSL) required by Prisma
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies and generate Prisma client
 COPY package.json tsconfig.json ./
 COPY prisma ./prisma
@@ -15,6 +18,9 @@ FROM node:20-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4000
+
+# Install runtime deps (OpenSSL) for Prisma client
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Copy app artifacts and dependencies
 COPY --from=builder /app/node_modules ./node_modules

@@ -45,6 +45,9 @@ export const createApp = ({ memoryService, embeddingProvider }: AppDependencies)
   const healthController = new HealthController(embeddingProvider);
   const adminController = new AdminController(memoryService);
 
+  // Expose top-level health for platform probes (in addition to /api/health)
+  app.get('/health', healthController.health);
+
   const apiRouter = express.Router();
   apiRouter.use(memoryRoutes(memoryController));
   apiRouter.use(sessionRoutes(sessionController));

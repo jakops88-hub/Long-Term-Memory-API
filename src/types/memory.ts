@@ -18,6 +18,8 @@ export interface RetrieveMemoryRequest {
   sessionId: string;
   query: string;
   limit?: number;
+  minScore?: number;
+  maxTokens?: number;
   metadata?: Record<string, unknown>;
 }
 
@@ -26,6 +28,7 @@ export interface MemoryResult {
   text: string;
   compressedText: string;
   importanceScore: number;
+  similarity: number;
   createdAt: string;
   lastAccessedAt: string;
   metadata?: Record<string, unknown>;
@@ -34,6 +37,7 @@ export interface MemoryResult {
 export interface RetrieveMemoryResponse {
   sessionId: string;
   query: string;
+  tokenUsage: number;
   results: MemoryResult[];
 }
 

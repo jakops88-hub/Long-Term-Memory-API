@@ -23,7 +23,8 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
         'https://api.openai.com/v1/embeddings',
         {
           input: text,
-          model: 'text-embedding-3-small'
+          model: 'text-embedding-3-small',
+          dimensions: 512
         },
         {
           headers: {

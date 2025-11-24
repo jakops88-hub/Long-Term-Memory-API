@@ -1,4 +1,4 @@
-import { Memory, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import {
   ClearMemoryRequest,
   RetrieveMemoryRequest,
@@ -6,27 +6,12 @@ import {
   StoreMemoryRequest,
   StoreMemoryResponse
 } from '../types/memory';
-import { computeFinalScore } from '../utils/scoring';
 import { compressText, computeImportanceScore, normalizeText, truncateIfNeeded } from '../utils/text';
-import { IMemoryRepository } from '../repositories/memoryRepository';
+import { IMemoryRepository, MemoryWithSimilarity } from '../repositories/memoryRepository';
 import { ISessionRepository } from '../repositories/sessionRepository';
 import { ApiError } from '../types/errors';
 import { EmbeddingProvider } from './embeddings/EmbeddingProvider';
 import { env } from '../config';
-
-const cosineSimilarity = (a?: number[], b?: number[]): number => {
-  if (!a || !b || a.length !== b.length || a.length === 0) return 0;
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i += 1) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  if (normA === 0 || normB === 0) return 0;
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-};
 
 export class MemoryService {
   constructor(
@@ -36,22 +21,40 @@ export class MemoryService {
   ) {}
 
   async storeMemory(input: StoreMemoryRequest): Promise<StoreMemoryResponse> {
-    const normalizedText = normalizeText(truncateIfNeeded(input.text));
-    const compressed = compressText(normalizedText);
-    const importanceScore = computeImportanceScore(normalizedText, input.importanceHint);
+    if (!this.embeddingProvider?.isEnabled()) {
+      throw new ApiError({
+        code: 'EMBEDDING_PROVIDER_DISABLED',
+        status: 500,
+        message: 'The embedding provider is not enabled, which is required for storing memories.'
+      });
+    }
 
-    // Ensure session exists
+    const normalizedText = normalizeText(truncateIfNeeded(input.text));
+
+    // Ensure session exists before we do any expensive work
     await this.sessionRepository.upsert(input.sessionId);
 
-    let embedding: number[] | undefined;
-    if (this.embeddingProvider?.isEnabled()) {
-      try {
-        embedding = await this.embeddingProvider.generateEmbedding(normalizedText);
-      } catch (err) {
-        // Proceed without embeddings if provider fails
-        embedding = undefined;
-      }
+    const embedding = await this.embeddingProvider.generateEmbedding(normalizedText);
+
+    // Smart Storage: Check for duplicates before creating a new memory
+    const duplicate = await this.memoryRepository.findDuplicate(input.sessionId, embedding);
+
+    if (duplicate) {
+      // If a similar memory exists, just update its last access time and return its ID.
+      // This avoids creating a new memory and saves space.
+      await this.memoryRepository.updateLastAccessed([duplicate.id], new Date());
+      const memory = await this.memoryRepository.findById(duplicate.id); // Re-fetch to get all details
+      return {
+        id: duplicate.id,
+        sessionId: input.sessionId,
+        importanceScore: memory?.importanceScore ?? 0,
+        createdAt: memory?.createdAt.toISOString() ?? new Date().toISOString()
+      };
     }
+
+    // No duplicate found, so proceed with creating a new memory
+    const importanceScore = computeImportanceScore(normalizedText, input.importanceHint);
+    const compressed = compressText(normalizedText);
 
     const created = await this.memoryRepository.create({
       sessionId: input.sessionId,
@@ -59,7 +62,6 @@ export class MemoryService {
       compressedText: compressed,
       metadata: input.metadata as Prisma.InputJsonValue | undefined,
       importanceScore,
-      recencyScore: 1,
       embedding
     });
 
@@ -72,6 +74,14 @@ export class MemoryService {
   }
 
   async retrieveMemories(input: RetrieveMemoryRequest): Promise<RetrieveMemoryResponse> {
+    if (!this.embeddingProvider?.isEnabled()) {
+      throw new ApiError({
+        code: 'EMBEDDING_PROVIDER_DISABLED',
+        status: 500,
+        message: 'The embedding provider is not enabled, which is required for retrieving memories.'
+      });
+    }
+
     const session = await this.sessionRepository.findById(input.sessionId);
     if (!session) {
       throw new ApiError({
@@ -81,39 +91,56 @@ export class MemoryService {
       });
     }
 
-    const limit = input.limit ?? 5;
-    const candidates = await this.memoryRepository.listActiveBySession(input.sessionId, 300);
-    let queryEmbedding: number[] | undefined;
+    const queryEmbedding = await this.embeddingProvider.generateEmbedding(normalizeText(input.query));
 
-    if (this.embeddingProvider?.isEnabled()) {
-      try {
-        queryEmbedding = await this.embeddingProvider.generateEmbedding(normalizeText(input.query));
-      } catch {
-        queryEmbedding = undefined;
+    // The repository now handles the complex logic of hybrid search (similarity + importance)
+    const candidates = await this.memoryRepository.findSimilarMemories(
+      input.sessionId,
+      queryEmbedding,
+      200, // Fetch more candidates than needed to allow for token budgeting
+      input.minScore ?? 0.5
+    );
+
+    // Token Budgeting: Ensure the total token count of memories does not exceed the budget.
+    const maxTokens = input.maxTokens ?? 1000;
+    let tokenUsage = 0;
+    const budgetedResults: MemoryWithSimilarity[] = [];
+
+    for (const candidate of candidates) {
+      // Estimate token count (a simple approximation)
+      const estimatedTokens = Math.ceil(candidate.text.length / 4);
+      if (tokenUsage + estimatedTokens > maxTokens) {
+        // Stop if adding the next memory would exceed the budget
+        break;
       }
+      tokenUsage += estimatedTokens;
+      budgetedResults.push(candidate);
     }
+    
+    // Limit to the user's specified limit after budgeting
+    const finalResults = budgetedResults.slice(0, input.limit ?? 10);
 
-    const ranked = candidates
-      .map((memory) => this.scoreMemory(memory, input.query, queryEmbedding, input.metadata))
-      .filter((item) => item.finalScore > 0)
-      .sort((a, b) => b.finalScore - a.finalScore)
-      .slice(0, limit);
-
-    const ids = ranked.map((r) => r.memory.id);
     const accessTime = new Date();
-    await this.memoryRepository.updateLastAccessed(ids, accessTime);
+    if (finalResults.length > 0) {
+      await this.memoryRepository.updateLastAccessed(
+        finalResults.map((r) => r.id),
+        accessTime
+      );
+    }
 
     return {
       sessionId: input.sessionId,
       query: input.query,
-      results: ranked.map((item) => ({
-        id: item.memory.id,
-        text: item.memory.text,
-        compressedText: item.memory.compressedText,
-        importanceScore: item.memory.importanceScore,
-        createdAt: item.memory.createdAt.toISOString(),
+      tokenUsage,
+      results: finalResults.map((item) => ({
+        id: item.id,
+        text: item.text,
+        compressedText: item.compressedText,
+        importanceScore: item.importanceScore,
+        similarity: item.similarity,
+        createdAt: item.createdAt.toISOString(),
         lastAccessedAt: accessTime.toISOString(),
-        metadata: (item.memory.metadata as Record<string, unknown> | null) || undefined
+        metadata: (item.metadata as Record<string, unknown> | null) || undefined
       }))
     };
   }
@@ -144,58 +171,6 @@ export class MemoryService {
       memoryCount,
       lastAccessedAt: lastAccessedAt?.toISOString() || null
     };
-  }
-
-  private scoreMemory(
-    memory: Memory,
-    query: string,
-    queryEmbedding?: number[],
-    metadataFilter?: Record<string, unknown>
-  ) {
-    const similarity = queryEmbedding
-      ? cosineSimilarity(queryEmbedding, memory.embedding || undefined)
-      : this.keywordScore(memory.text, query);
-    if (metadataFilter) {
-      const matches = Object.entries(metadataFilter).every(
-        ([key, value]) => (memory.metadata as Record<string, unknown> | undefined)?.[key] === value
-      );
-      if (!matches) return { memory, finalScore: 0, similarity: 0, recencyScore: 0 };
-    }
-
-    const recencyMs = this.computeRecencyAgeMs(memory);
-    const { finalScore, recencyScore } = computeFinalScore({
-      similarity,
-      recencyMs,
-      importanceScore: memory.importanceScore
-    });
-
-    return {
-      memory,
-      finalScore,
-      recencyScore,
-      similarity
-    };
-  }
-
-  private keywordScore(text: string, query: string): number {
-    const queryTokens = normalizeText(query)
-      .toLowerCase()
-      .split(' ')
-      .filter(Boolean);
-    const textLower = normalizeText(text).toLowerCase();
-    if (!queryTokens.length) return 0;
-    const hits = queryTokens.filter((token) => textLower.includes(token)).length;
-    return hits / queryTokens.length;
-  }
-
-  private computeRecencyAgeMs(memory: Memory): number {
-    const now = Date.now();
-    const createdAge = now - memory.createdAt.getTime();
-    const lastAccessAge = memory.lastAccessedAt
-      ? now - memory.lastAccessedAt.getTime()
-      : createdAge;
-    // Use the fresher of {created, last accessed} to reward recently used or created memories
-    return Math.min(createdAge, lastAccessAge);
   }
 
   async pruneOldMemories(params?: {
