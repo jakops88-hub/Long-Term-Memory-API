@@ -7,5 +7,8 @@ module.exports = {
   resetMocks: true,
   clearMocks: true,
   coveragePathIgnorePatterns: ['/node_modules/', '/dist/'],
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts']
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+  transform: {
+    '^.+\\.ts$': 'ts-jest'
+  }
 };
