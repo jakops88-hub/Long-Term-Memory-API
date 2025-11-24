@@ -7,7 +7,7 @@ describe('Memory routes', () => {
   const sessionId = 'route-session';
   const memoryRepository = new FakeMemoryRepository();
   const sessionRepository = new FakeSessionRepository();
-  const embeddingProvider = new FakeEmbeddingProvider(0.6, false);
+  const embeddingProvider = new FakeEmbeddingProvider(0.6, true);
   const memoryService = new MemoryService(memoryRepository, sessionRepository, embeddingProvider);
   const app = createApp({ memoryService, embeddingProvider });
 
