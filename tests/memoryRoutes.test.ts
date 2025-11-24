@@ -3,6 +3,9 @@ import { createApp } from '../src/app';
 import { MemoryService } from '../src/services/memoryService';
 import { FakeEmbeddingProvider, FakeMemoryRepository, FakeSessionRepository } from './fakes';
 
+process.env.ENABLE_EMBEDDINGS = 'true';
+process.env.OPENAI_API_KEY = 'test-key';
+
 describe('Memory routes', () => {
   const sessionId = 'route-session';
   const memoryRepository = new FakeMemoryRepository();
