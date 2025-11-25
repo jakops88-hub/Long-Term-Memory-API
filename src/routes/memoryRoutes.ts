@@ -7,6 +7,7 @@ import { env } from '../config';
 export const memoryRoutes = (controller: MemoryController) => {
   const router = Router();
 
+  // Schema för att spara minnen
   const storeSchema = z.object({
     body: z.object({
       sessionId: z.string().min(1),
@@ -16,6 +17,7 @@ export const memoryRoutes = (controller: MemoryController) => {
     })
   });
 
+  // Schema för att hämta/söka minnen
   const retrieveSchema = z.object({
     body: z.object({
       sessionId: z.string().min(1),
@@ -25,6 +27,7 @@ export const memoryRoutes = (controller: MemoryController) => {
     })
   });
 
+  // Schema för att radera minnen
   const clearSchema = z.object({
     body: z.object({
       sessionId: z.string().min(1),
@@ -32,13 +35,18 @@ export const memoryRoutes = (controller: MemoryController) => {
     })
   });
 
-  // FIX: Tog bort '/memory' prefixet här eftersom det redan läggs på i app.ts
-  router.post('/store', validate(storeSchema), controller.store);
+  // --- DEFINIERA RUTTER ---
   
-  // FIX: Din demo-app anropar '/search', så vi pekar den mot retrieve-funktionen
-  router.post('/retrieve', validate(retrieveSchema), controller.retrieve);
-  router.post('/search', validate(retrieveSchema), controller.retrieve); 
+  // POST /api/memory/store
+  router.post('/store', validate(storeSchema), controller.store);
 
+  // POST /api/memory/retrieve
+  router.post('/retrieve', validate(retrieveSchema), controller.retrieve);
+
+  // POST /api/memory/search (Alias för retrieve, för att matcha din frontend)
+  router.post('/search', validate(retrieveSchema), controller.retrieve);
+
+  // POST /api/memory/clear
   router.post('/clear', validate(clearSchema), controller.clear);
 
   return router;
