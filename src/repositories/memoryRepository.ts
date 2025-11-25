@@ -1,11 +1,7 @@
 import { Memory, Prisma } from '@prisma/client';
-import { env, prisma } from '../config';
+import { env, prisma } from '../config'; // FIX: Importerar env korrekt
 
-// The raw query returns all fields from the Memory table plus a 'similarity' field.
-// The 'embedding' field is not returned, as it's large and not needed by the application logic.
 export type MemoryWithSimilarity = Omit<Memory, 'embedding'> & { similarity: number };
-
-// The raw query for finding duplicates returns only the id.
 export type DuplicateMemory = Pick<Memory, 'id'>;
 
 export interface MemoryCreateInput {
@@ -47,8 +43,6 @@ export class MemoryRepository implements IMemoryRepository {
     const embeddingString = `[${(embedding ?? []).join(',')}]`;
     const metadataJson = metadata ? JSON.stringify(metadata) : null;
 
-    // With `Unsupported` types, we must use raw SQL for inserts.
-    // We insert the data and return the `id` of the new row.
     const result = await prisma.$queryRaw<{ id: string }[]>`
       INSERT INTO "Memory" (
         "id", "sessionId", "text", "compressedText", "metadata", "importanceScore", "recencyScore", "embedding"
@@ -59,10 +53,8 @@ export class MemoryRepository implements IMemoryRepository {
     `;
     const newId = result[0].id;
 
-    // Fetch the newly created memory to return the complete object, fulfilling the method's signature.
     const newMemory = await this.findById(newId);
     if (!newMemory) {
-      // This should not happen if the insert was successful.
       throw new Error('Failed to retrieve memory immediately after creation.');
     }
     return newMemory;
@@ -81,9 +73,13 @@ export class MemoryRepository implements IMemoryRepository {
     minScore: number
   ): Promise<MemoryWithSimilarity[]> {
     const embeddingString = `[${embedding.join(',')}]`;
+    
+    // Hämta vikter från env, med fallback om de saknas
+    const simWeight = env.scoringWeights.similarity ?? 0.5;
+    const impWeight = env.scoringWeights.importance ?? 0.3;
 
-    // This raw query performs a hybrid search, weighting vector similarity and importance score.
-    // It selects all necessary fields from the Memory model to match the `MemoryWithSimilarity` type.
+    // FIX: Vi använder hela uttrycket i ORDER BY för att undvika problem med alias
+    // FIX: Vi castar parametern explicit till vector
     const results = await prisma.$queryRaw<MemoryWithSimilarity[]>`
       SELECT
         "id",
@@ -103,7 +99,7 @@ export class MemoryRepository implements IMemoryRepository {
         "isDeleted" = false AND
         1 - (embedding <=> ${embeddingString}::vector) >= ${minScore}
       ORDER BY
-        * ${env.scoringWeights.similarity} + "importanceScore" * ${env.scoringWeights.importance} DESC
+        (1 - (embedding <=> ${embeddingString}::vector)) * ${simWeight} + "importanceScore" * ${impWeight} DESC
       LIMIT ${limit}
     `;
 
@@ -112,9 +108,8 @@ export class MemoryRepository implements IMemoryRepository {
 
   async findDuplicate(sessionId: string, embedding: number[]): Promise<DuplicateMemory | null> {
     const embeddingString = `[${embedding.join(',')}]`;
-    const similarityThreshold = 0.95; // High similarity for deduplication
+    const similarityThreshold = 0.95;
 
-    // Checks for a very similar memory in the last 24 hours to prevent duplicates.
     const results = await prisma.$queryRaw<DuplicateMemory[]>`
       SELECT "id"
       FROM "Memory"
@@ -134,7 +129,6 @@ export class MemoryRepository implements IMemoryRepository {
     const idList = Array.isArray(ids) ? ids : [ids];
     if (!idList.length) return;
 
-    // Prisma's `updateMany` is still available as it doesn't touch the `Unsupported` field.
     await prisma.memory.updateMany({
       where: { id: { in: idList } },
       data: { lastAccessedAt: timestamp }
