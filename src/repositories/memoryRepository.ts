@@ -103,7 +103,7 @@ export class MemoryRepository implements IMemoryRepository {
         "isDeleted" = false AND
         1 - (embedding <=> ${embeddingString}::vector) >= ${minScore}
       ORDER BY
-        similarity * 0.7 + "importanceScore" * 0.3 DESC
+        * ${env.scoringWeights.similarity} + "importanceScore" * ${env.scoringWeights.importance} DESC
       LIMIT ${limit}
     `;
 

@@ -26,7 +26,7 @@ model Memory {
   metadata       Json?
   importanceScore Float
   recencyScore    Float?
-  embedding       Unsupported("vector(1536)")?
+  embedding       Unsupported("vector(512)")?
   createdAt      DateTime  @default(now())
   lastAccessedAt DateTime  @default(now())
   isDeleted      Boolean   @default(false)
