@@ -1,5 +1,5 @@
 import { Memory, Prisma } from '@prisma/client';
-import { prisma } from '../config';
+import { env, prisma } from '../config';
 
 // The raw query returns all fields from the Memory table plus a 'similarity' field.
 // The 'embedding' field is not returned, as it's large and not needed by the application logic.
