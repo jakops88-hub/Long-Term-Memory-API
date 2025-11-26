@@ -24,17 +24,28 @@ export interface AppDependencies {
 export const createApp = ({ memoryService, embeddingProvider }: AppDependencies) => {
   const app = express();
 
-  // CORS: Tillåt Vercel (Frontend) att prata med Railway (Backend)
-  const corsOrigin = [
-    'http://localhost:5173',
-    'https://memvault-demo-g38n.vercel.app',
-    'https://memvault-demo-g38n-hmln73sg5-jacobs-projects-f74302f1.vercel.app'
-  ];
-
   app.use(helmet());
+  
+  // FIX: Smartare CORS som tillåter alla dina Vercel-versioner
   app.use(
     cors({
-      origin: corsOrigin,
+      origin: (origin, callback) => {
+        // Tillåt anrop utan origin (t.ex. från curl eller Postman)
+        if (!origin) return callback(null, true);
+
+        // Tillåt localhost för utveckling
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+          return callback(null, true);
+        }
+
+        // Tillåt alla dina Vercel-deployments (slutar på .vercel.app)
+        if (origin.endsWith('.vercel.app')) {
+          return callback(null, true);
+        }
+
+        // Annars, blockera
+        callback(new Error('Not allowed by CORS'));
+      },
       credentials: true,
       allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
     })
@@ -53,15 +64,10 @@ export const createApp = ({ memoryService, embeddingProvider }: AppDependencies)
 
   const apiRouter = express.Router();
 
-  // VIKTIGT: Här monterar vi minnes-ruter under '/memory'
-  // Tillsammans med ändringen i memoryRoutes.ts blir resultatet:
-  // - POST /api/memory (Store)
-  // - POST /api/memory/search (Retrieve)
-  // - POST /api/memory/clear (Clear)
+  // Montera routes
   apiRouter.use('/memory', memoryRoutes(memoryController));
-  
-  apiRouter.use(sessionRoutes(sessionController));
-  apiRouter.use(adminRoutes(adminController));
+  apiRouter.use('/session', sessionRoutes(sessionController));
+  apiRouter.use('/admin', adminRoutes(adminController));
   apiRouter.use(healthRoutes(healthController));
 
   app.use('/api', apiRouter);
