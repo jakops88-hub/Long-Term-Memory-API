@@ -24,7 +24,8 @@ Stop setting up Pinecone, embedding pipelines, and chunking logic for every side
 
 Debugging invisible vectors is a nightmare. MemVault includes a visualizer to verify your retrieval pipeline in real-time.
 
-> **https://github.com/user-attachments/assets/e9cf2c67-83d9-43f5-9b94-568553441b69**
+​![Visualizer Dashboard]
+(https://github.com/user-attachments/assets/e9cf2c67-83d9-43f5-9b94-568553441b69)
 >
 > *[Live Demo](https://memvault-demo-g38n.vercel.app/)*
 
