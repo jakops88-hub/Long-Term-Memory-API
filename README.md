@@ -1,106 +1,116 @@
-# Memory-as-a-Service API
+# 🧠 MemVault: Long-Term Memory Server
 
-Production-grade API that gives agents and applications long-term memory. Built with Node.js, TypeScript, Express, and PostgreSQL (with optional embeddings via OpenAI).
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
 
-## Features
-- Store and retrieve memories per session with importance, recency, and semantic scoring.
-- Optional embeddings (OpenAI) with graceful fallback to keyword/recency/importance ranking.
-- Clean architecture with Prisma for data access.
-- Rate limiting, validation, logging, centralized error handling, and health checks.
+**Production-grade API to give your AI agents long-term memory without the boilerplate.**
 
-## Quickstart
-1. Install dependencies
-   ```bash
-   npm install
-   ```
-2. Copy env template and configure
-   ```bash
-   cp .env.example .env
-   ```
-3. Initialize database
-   ```bash
-   npx prisma migrate dev --name init
-   ```
-4. Run in development
-   ```bash
-   npm run dev
-   ```
+Stop setting up Pinecone, embedding pipelines, and chunking logic for every side project. MemVault abstracts the entire RAG pipeline into a single API endpoint that runs on your own infrastructure (PostgreSQL + pgvector).
 
-## Environment
-Required/optional variables (see `.env.example`):
-- `DATABASE_URL` (required) PostgreSQL connection string.
-- `PORT` server port (default 4000).
-- `NODE_ENV` `development|test|production`.
-- `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX_REQUESTS`.
-- `CORS_ORIGIN` allowed origins (`*` allowed).
-- `OPENAI_API_KEY` enable embeddings when set.
-- `ENABLE_EMBEDDINGS` `true|false` toggle embeddings.
-- Scoring weights: `WEIGHT_SIMILARITY`, `WEIGHT_RECENCY`, `WEIGHT_IMPORTANCE`.
-- `MAX_TEXT_LENGTH` maximum accepted text length.
-- Admin/pruning: `ADMIN_API_KEY`, `PRUNE_MAX_AGE_DAYS`, `PRUNE_INACTIVE_DAYS`, `PRUNE_IMPORTANCE_THRESHOLD`.
+---
 
-## API
-Base path: `/api`.
+## ✨ Features
 
-### POST /api/memory/store
-Stores a memory (creates session if missing).
-```json
-{
-  "sessionId": "session-123",
-  "text": "User bought an iPhone 15 yesterday.",
-  "metadata": { "source": "chat", "userId": "user-abc" },
-  "importanceHint": "high"
-}
-```
+* **Hybrid Search:** Retrieves memories based on a weighted score of **Semantic Similarity**, **Recency**, and **Importance**.
+* **Auto-Embedding:** Handles text chunking and embedding generation (OpenAI supported, local models coming soon).
+* **Self-Hostable:** Runs on standard PostgreSQL. No vendor lock-in.
+* **Visualizer Dashboard:** Includes a frontend tool to debug retrieval and see exactly *why* a specific memory was recalled.
+* **Prisma ORM:** Type-safe database access.
 
-### POST /api/memory/retrieve
-Retrieves relevant memories for a session and query.
-```json
-{
-  "sessionId": "session-123",
-  "query": "What products has the user bought?",
-  "limit": 5
-}
-```
+---
 
-### POST /api/memory/clear
-Soft-deletes a session's memories (or selected ones).
-```json
-{
-  "sessionId": "session-123",
-  "memoryIds": ["id-1", "id-2"]
-}
-```
+## 👁️ Visualizer (The "Debugger" for RAG)
 
-### POST /api/admin/prune
-Prunes stale, low-importance memories. Requires header `x-api-key: <ADMIN_API_KEY>`.
-Optional body:
-```json
-{
-  "maxAgeDays": 90,
-  "inactiveDays": 30,
-  "importanceThreshold": 0.3,
-  "take": 500
-}
-```
+Debugging invisible vectors is a nightmare. MemVault includes a visualizer to verify your retrieval pipeline in real-time.
 
-### GET /api/sessions/:sessionId
-Inspect a session summary (counts, timestamps).
+> *
+>
+> *[Live Demo](https://memvault-demo-g38n.vercel.app/)*
 
-### GET /api/health
-Health info for app, DB, and embedding provider.
+---
 
-## Deploying to Railway
-- Required env: `DATABASE_URL`, `PORT` (optional, default 4000), `NODE_ENV=production`, `ADMIN_API_KEY`, rate-limit settings, scoring weights, and embedding config (`OPENAI_API_KEY`, `ENABLE_EMBEDDINGS`).
-- Steps:
-  1. Create a PostgreSQL instance on Railway and copy its `DATABASE_URL`.
-  2. Create a new service from this repo (Dockerfile provided) and set env vars.
-  3. Apply migrations on deploy: set start/command to `npx prisma migrate deploy && node dist/server.js` (or rely on `docker-entrypoint.sh` in the provided image).
-  4. pgvector is optional but recommended; enable the extension on your DB if you want semantic search scoring.
+## 🚀 Quick Start (Docker)
 
-## Testing
-Run all tests:
+The easiest way to run MemVault is with Docker Compose. This spins up the API and a Postgres instance with `pgvector` pre-installed.
+
 ```bash
+# 1. Clone the repo
+git clone [https://github.com/jakops88-hub/Long-Term-Memory-API.git](https://github.com/jakops88-hub/Long-Term-Memory-API.git)
+cd Long-Term-Memory-API
+
+# 2. Set up environment
+cp .env.example .env
+# Edit .env and add your OPENAI_API_KEY (required for embeddings for now)
+
+# 3. Start the stack
+docker-compose up -d
+
+Your API is now running at http://localhost:3000.
+🛠️ Manual Installation
+If you prefer to run it without Docker or deploy to Railway/Vercel.
+ * Install dependencies
+   npm install
+
+ * Configure Environment
+   cp .env.example .env
+
+ * Initialize Database
+   npx prisma migrate dev --name init
+
+ * Run Development Server
+   npm run dev
+
+🔌 API Usage
+Base URL: http://localhost:4000/api
+1. Store a Memory
+The API handles chunking and vectorization automatically.
+curl -X POST http://localhost:4000/api/memory/store \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "agent-007",
+    "text": "The user prefers strictly typed languages like TypeScript.",
+    "importanceHint": "high",
+    "metadata": { "source": "user_chat" }
+  }'
+
+2. Retrieve Context
+Gets the most relevant memories based on the hybrid scoring algorithm.
+curl -X POST http://localhost:4000/api/memory/retrieve \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "agent-007",
+    "query": "What language should I use for the backend?",
+    "limit": 3
+  }'
+
+3. Clear History
+Soft-deletes memories for a session.
+curl -X POST http://localhost:4000/api/memory/clear \
+  -H "Content-Type: application/json" \
+  -d '{ "sessionId": "agent-007" }'
+
+⚙️ Configuration (.env)
+| Variable | Description | Default |
+|---|---|---|
+| DATABASE_URL | Required. PostgreSQL connection string | - |
+| OPENAI_API_KEY | Required if ENABLE_EMBEDDINGS=true | - |
+| ENABLE_EMBEDDINGS | Toggle vector generation | true |
+| WEIGHT_SIMILARITY | 0.0 to 1.0 influence of vector match | 0.8 |
+| WEIGHT_RECENCY | 0.0 to 1.0 influence of how new data is | 0.2 |
+| ADMIN_API_KEY | Key for admin endpoints (pruning) | - |
+🚅 Deploying to Railway
+ * Fork this repo.
+ * Create a project on Railway with PostgreSQL.
+ * Enable the vector extension in your database (Railway usually supports this out of the box or via SQL command CREATE EXTENSION vector;).
+ * Deploy this repo and add your DATABASE_URL and OPENAI_API_KEY.
+ * Build Command: npm install && npx prisma generate
+ * Start Command: npx prisma migrate deploy && node dist/server.js
+🧪 Testing
+# Run unit & integration tests
 npm test
-```
-Includes unit tests for scoring, service tests with mocked embeddings, and integration tests for memory endpoints using Supertest with a mocked repository.
+
+🤝 Contributing
+PRs are welcome! Specifically looking for:
+ * Support for Ollama embeddings (local).
+ * Support for other Vector DBs (Chroma, etc).
