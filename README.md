@@ -1,117 +1,113 @@
-# 🧠 MemVault: Long-Term Memory Server
+# MemVault
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
+> **A Memory Server for AI Agents. Runs on Postgres + pgvector.**
 
-**Production-grade API to give your AI agents long-term memory without the boilerplate.**
+[![NPM Version](https://img.shields.io/npm/v/memvault-sdk-jakops88?style=flat-square)](https://www.npmjs.com/package/memvault-sdk-jakops88)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-Stop setting up Pinecone, embedding pipelines, and chunking logic for every side project. MemVault abstracts the entire RAG pipeline into a single API endpoint that runs on your own infrastructure (PostgreSQL + pgvector).
+I got tired of setting up Pinecone or Weaviate and writing the same embedding boilerplate for every small AI agent I built.
 
----
+I wanted something that:
+1. Just runs on **PostgreSQL** (which I already use).
+2. Handles the **chunking & embedding** automatically.
+3. Lets me **visualize** the retrieval process (because debugging vector similarity in JSON logs is difficult).
 
-## ✨ Features
-
-* **Hybrid Search:** Retrieves memories based on a weighted score of **Semantic Similarity**, **Recency**, and **Importance**.
-* **Auto-Embedding:** Handles text chunking and embedding generation (OpenAI supported, local models coming soon).
-* **Self-Hostable:** Runs on standard PostgreSQL. No vendor lock-in.
-* **Visualizer Dashboard:** Includes a frontend tool to debug retrieval and see exactly *why* a specific memory was recalled.
-* **Prisma ORM:** Type-safe database access.
+So I built MemVault. It is a Node.js wrapper around `pgvector` with a hybrid search algorithm (Vector Similarity + Recency Decay).
 
 ---
 
-## 👁️ Visualizer (The "Debugger" for RAG)
+## Quick Start: Choose your setup
 
-Debugging invisible vectors is a nightmare. MemVault includes a visualizer to verify your retrieval pipeline in real-time.
+You can run this entirely on your own machine (Docker), or use the managed API to skip the server maintenance.
 
-![Visualizer Dashboard](https://github.com/user-attachments/assets/e9cf2c67-83d9-43f5-9b94-568553441b69)
-
->
-> *[Live Demo](https://memvault-demo-g38n.vercel.app/)*
+| Feature | Self-Hosted (Docker) | Managed API (RapidAPI) |
+| :--- | :--- | :--- |
+| **Price** | Free (Open Source) | Free Tier available |
+| **Setup Time** | ~15 mins | 30 seconds |
+| **Data Privacy** | 100% on your server | Hosted by us |
+| **Maintenance** | You manage updates/uptime | We handle everything |
+| **Link** | [Scroll down to Self-Hosting](#self-hosting-docker) | [**Get API Key**](https://rapidapi.com/jakops88/api/long-term-memory-api) |
 
 ---
 
-## 🚀 Quick Start (Docker)
+## The Visualizer
 
-The easiest way to run MemVault is with Docker Compose. This spins up the API and a Postgres instance with `pgvector` pre-installed.
+The hardest part of RAG is knowing *why* your bot retrieved specific context. MemVault comes with a dashboard to visualize the vector search in real-time.
+
+![MemVault Visualizer Dashboard](https://github.com/user-attachments/assets/e9cf2c67-83d9-43f5-9b94-568553441b69)
+
+*(Live Demo: [memvault-demo.vercel.app](https://memvault-demo-g38n.vercel.app/))*
+
+---
+
+## Installation (NPM SDK)
+
+Whether you self-host or use the Cloud API, the SDK works the same way.
 
 ```bash
-# 1. Clone the repo
+npm install memvault-sdk-jakops88
+import { MemVault } from 'memvault-sdk-jakops88';
+
+// If self-hosting, change the baseUrl to your local instance (http://localhost:3000)
+// If using Managed API, use the RapidAPI endpoint
+const memory = new MemVault({
+  apiKey: "YOUR_API_KEY", 
+  baseUrl: "[https://long-term-memory-api.p.rapidapi.com](https://long-term-memory-api.p.rapidapi.com)" 
+});
+
+// 1. Store a memory (Automatic embedding generation)
+await memory.store({
+  sessionId: "user-123",
+  text: "The user prefers strictly typed languages like TypeScript.",
+  importanceHint: "high" // Optional weighting
+});
+
+// 2. Retrieve relevant context
+const result = await memory.retrieve({
+  sessionId: "user-123",
+  query: "What tech stack should I recommend?",
+  limit: 3
+});
+
+console.log(result); 
+// Returns relevant chunks based on Semantic Match + Recency
+## Self-Hosting (Docker)
+
+If you prefer to own the stack, you can spin it up with Docker Compose. It sets up the API and a Postgres instance with `pgvector` pre-installed.
+
+**Prerequisites:**
+* Docker & Docker Compose
+* An OpenAI API Key (Local Ollama support is on the roadmap)
+
+**1. Clone the repo**
+```bash
 git clone [https://github.com/jakops88-hub/Long-Term-Memory-API.git](https://github.com/jakops88-hub/Long-Term-Memory-API.git)
 cd Long-Term-Memory-API
-
-# 2. Set up environment
-cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY (required for embeddings for now)
-
-# 3. Start the stack
+**3. Run it**
+```bash
 docker-compose up -d
+```
 
-Your API is now running at http://localhost:3000.
-🛠️ Manual Installation
-If you prefer to run it without Docker or deploy to Railway/Vercel.
- * Install dependencies
-   npm install
+Your API is now running at `http://localhost:3000`.
 
- * Configure Environment
-   cp .env.example .env
+---
 
- * Initialize Database
-   npx prisma migrate dev --name init
+## Architecture & Tech Stack
 
- * Run Development Server
-   npm run dev
+* **Runtime:** Node.js & TypeScript
+* **Database:** PostgreSQL + `pgvector`
+* **ORM:** Prisma
+* **Algorithm:** Hybrid Scoring `(CosineSimilarity * 0.8) + (RecencyDecay * 0.2)`
 
-🔌 API Usage
-Base URL: http://localhost:4000/api
-1. Store a Memory
-The API handles chunking and vectorization automatically.
-curl -X POST http://localhost:4000/api/memory/store \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sessionId": "agent-007",
-    "text": "The user prefers strictly typed languages like TypeScript.",
-    "importanceHint": "high",
-    "metadata": { "source": "user_chat" }
-  }'
+---
 
-2. Retrieve Context
-Gets the most relevant memories based on the hybrid scoring algorithm.
-curl -X POST http://localhost:4000/api/memory/retrieve \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sessionId": "agent-007",
-    "query": "What language should I use for the backend?",
-    "limit": 3
-  }'
+## Contributing
 
-3. Clear History
-Soft-deletes memories for a session.
-curl -X POST http://localhost:4000/api/memory/clear \
-  -H "Content-Type: application/json" \
-  -d '{ "sessionId": "agent-007" }'
+This is a side project that grew into a tool. Issues and PRs are welcome.
+Specifically looking for help with:
+* **Ollama Integration:** To make the stack 100% offline capable.
+* **Metadata Filters:** Adding structured filtering alongside vectors.
 
-⚙️ Configuration (.env)
-| Variable | Description | Default |
-|---|---|---|
-| DATABASE_URL | Required. PostgreSQL connection string | - |
-| OPENAI_API_KEY | Required if ENABLE_EMBEDDINGS=true | - |
-| ENABLE_EMBEDDINGS | Toggle vector generation | true |
-| WEIGHT_SIMILARITY | 0.0 to 1.0 influence of vector match | 0.8 |
-| WEIGHT_RECENCY | 0.0 to 1.0 influence of how new data is | 0.2 |
-| ADMIN_API_KEY | Key for admin endpoints (pruning) | - |
-🚅 Deploying to Railway
- * Fork this repo.
- * Create a project on Railway with PostgreSQL.
- * Enable the vector extension in your database (Railway usually supports this out of the box or via SQL command CREATE EXTENSION vector;).
- * Deploy this repo and add your DATABASE_URL and OPENAI_API_KEY.
- * Build Command: npm install && npx prisma generate
- * Start Command: npx prisma migrate deploy && node dist/server.js
-🧪 Testing
-# Run unit & integration tests
-npm test
+## License
 
-🤝 Contributing
-PRs are welcome! Specifically looking for:
- * Support for Ollama embeddings (local).
- * Support for other Vector DBs (Chroma, etc).
+MIT
