@@ -4,12 +4,12 @@ import { env, logger, prisma } from './config';
 import { MemoryRepository } from './repositories/memoryRepository';
 import { SessionRepository } from './repositories/sessionRepository';
 import { MemoryService } from './services/memoryService';
-import { OpenAIEmbeddingProvider } from './services/embeddings/OpenAIEmbeddingProvider';
+import { getEmbeddingProvider } from './services/embeddings';
 
 const bootstrap = async () => {
   const memoryRepository = new MemoryRepository();
   const sessionRepository = new SessionRepository();
-  const embeddingProvider = new OpenAIEmbeddingProvider();
+  const embeddingProvider = getEmbeddingProvider();
   const memoryService = new MemoryService(memoryRepository, sessionRepository, embeddingProvider);
 
   const app = createApp({ memoryService, embeddingProvider });

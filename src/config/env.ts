@@ -10,8 +10,14 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(60),
   CORS_ORIGIN: z.string().default('*'),
-  OPENAI_API_KEY: z.string().optional(),
+  
+  // Embedding settings
   ENABLE_EMBEDDINGS: z.string().optional(),
+  EMBEDDING_PROVIDER: z.enum(['openai', 'ollama']).default('openai'),
+  OPENAI_API_KEY: z.string().optional(),
+  OLLAMA_URL: z.string().url().default('http://127.0.0.1:11434'),
+  OLLAMA_MODEL: z.string().default('nomic-embed-text'),
+
   // New weighting keys; also support legacy SCORING_* for compatibility
   WEIGHT_SIMILARITY: z.coerce.number().optional(),
   WEIGHT_RECENCY: z.coerce.number().optional(),
@@ -19,8 +25,11 @@ const envSchema = z.object({
   SCORING_WEIGHT_SIMILARITY: z.coerce.number().optional(),
   SCORING_WEIGHT_RECENCY: z.coerce.number().optional(),
   SCORING_WEIGHT_IMPORTANCE: z.coerce.number().optional(),
+  
   MAX_TEXT_LENGTH: z.coerce.number().default(4000),
   ADMIN_API_KEY: z.string().optional(),
+  
+  // Pruning settings
   PRUNE_MAX_AGE_DAYS: z.coerce.number().default(90),
   PRUNE_INACTIVE_DAYS: z.coerce.number().default(30),
   PRUNE_IMPORTANCE_THRESHOLD: z.coerce.number().default(0.3)
@@ -43,9 +52,14 @@ export const env = {
   rateLimitWindowMs: raw.RATE_LIMIT_WINDOW_MS,
   rateLimitMaxRequests: raw.RATE_LIMIT_MAX_REQUESTS,
   corsOrigin: raw.CORS_ORIGIN,
+  
+  // Embeddings
+  embeddingsEnabled: raw.ENABLE_EMBEDDINGS?.toLowerCase() === 'true',
+  embeddingProvider: raw.EMBEDDING_PROVIDER,
   openAiApiKey: raw.OPENAI_API_KEY,
-  embeddingsEnabled:
-    raw.ENABLE_EMBEDDINGS?.toLowerCase() === 'true' && Boolean(raw.OPENAI_API_KEY),
+  ollamaUrl: raw.OLLAMA_URL,
+  ollamaModel: raw.OLLAMA_MODEL,
+
   scoringWeights: {
     similarity:
       raw.WEIGHT_SIMILARITY ??

@@ -6,7 +6,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  extensions = [pg_vector]
+  extensions = [vector]
 }
 
 model Session {
@@ -26,7 +26,7 @@ model Memory {
   metadata       Json?
   importanceScore Float
   recencyScore    Float?
-  embedding       Unsupported("vector(512)")?
+  embedding       Unsupported("vector(768)")?
   createdAt      DateTime  @default(now())
   lastAccessedAt DateTime  @default(now())
   isDeleted      Boolean   @default(false)
