@@ -93,20 +93,53 @@ export class MemoryService {
 
     const queryEmbedding = await this.embeddingProvider.generateEmbedding(normalizeText(input.query));
 
-    // The repository now handles the complex logic of hybrid search (similarity + importance)
+    // 1. Fetch "Raw" Candidates (Low Threshold)
+    // We fetch with a very low threshold (0.01) to see what the DB actually finds,
+    // which allows us to debug why "obvious" matches might be missed.
+    const debugThreshold = 0.01;
     const candidates = await this.memoryRepository.findSimilarMemories(
       input.sessionId,
       queryEmbedding,
-      200, // Fetch more candidates than needed to allow for token budgeting
-      input.minScore ?? 0.5
+      200, 
+      debugThreshold
     );
+
+    // 2. Deep Logging
+    // Print the top 3 raw matches to the console for debugging.
+    const topRaw = candidates.slice(0, 3);
+    console.log(
+      `Query: '${input.query}', Raw Candidates: ${JSON.stringify(
+        topRaw.map((c) => ({
+          text: c.text.substring(0, 50) + (c.text.length > 50 ? '...' : ''),
+          score: c.similarity.toFixed(4)
+        }))
+      )}`
+    );
+
+    // 3. Apply Configurable Threshold
+    const minScore = input.minScore ?? env.minSimilarityScore;
+    let filteredCandidates = candidates.filter((c) => c.similarity >= minScore);
+    let isLowConfidence = false;
+
+    // 4. Low Confidence Fallback
+    // If no memories pass the strict threshold, return the single best match
+    // but flag it as low confidence.
+    if (filteredCandidates.length === 0 && candidates.length > 0) {
+      console.log(
+        `No matches above ${minScore}. Returning best match (${candidates[0].similarity.toFixed(
+          4
+        )}) as low confidence.`
+      );
+      filteredCandidates = [candidates[0]];
+      isLowConfidence = true;
+    }
 
     // Token Budgeting: Ensure the total token count of memories does not exceed the budget.
     const maxTokens = input.maxTokens ?? 1000;
     let tokenUsage = 0;
     const budgetedResults: MemoryWithSimilarity[] = [];
 
-    for (const candidate of candidates) {
+    for (const candidate of filteredCandidates) {
       // Estimate token count (a simple approximation)
       const estimatedTokens = Math.ceil(candidate.text.length / 4);
       if (tokenUsage + estimatedTokens > maxTokens) {
@@ -140,7 +173,8 @@ export class MemoryService {
         similarity: item.similarity,
         createdAt: item.createdAt.toISOString(),
         lastAccessedAt: accessTime.toISOString(),
-        metadata: (item.metadata as Record<string, unknown> | null) || undefined
+        metadata: (item.metadata as Record<string, unknown> | null) || undefined,
+        lowConfidence: isLowConfidence
       }))
     };
   }

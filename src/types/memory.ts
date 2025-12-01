@@ -32,6 +32,7 @@ export interface MemoryResult {
   createdAt: string;
   lastAccessedAt: string;
   metadata?: Record<string, unknown>;
+  lowConfidence?: boolean;
 }
 
 export interface RetrieveMemoryResponse {

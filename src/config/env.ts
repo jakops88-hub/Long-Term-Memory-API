@@ -26,6 +26,8 @@ const envSchema = z.object({
   SCORING_WEIGHT_RECENCY: z.coerce.number().optional(),
   SCORING_WEIGHT_IMPORTANCE: z.coerce.number().optional(),
   
+  MIN_SIMILARITY_SCORE: z.coerce.number().default(0.5),
+  
   MAX_TEXT_LENGTH: z.coerce.number().default(4000),
   ADMIN_API_KEY: z.string().optional(),
   
@@ -74,6 +76,7 @@ export const env = {
       raw.SCORING_WEIGHT_IMPORTANCE ??
       0.3
   },
+  minSimilarityScore: raw.MIN_SIMILARITY_SCORE,
   maxTextLength: raw.MAX_TEXT_LENGTH,
   adminApiKey: raw.ADMIN_API_KEY,
   prune: {
