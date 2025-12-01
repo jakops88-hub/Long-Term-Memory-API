@@ -9,6 +9,7 @@ export const errorHandler = (
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction
 ) => {
+  console.error(err); // Added for debugging
   const isApiError = err instanceof ApiError;
   const status = isApiError ? err.status : 500;
   const code = isApiError ? err.code : 'INTERNAL_ERROR';
@@ -33,3 +34,4 @@ export const errorHandler = (
     }
   });
 };
+
