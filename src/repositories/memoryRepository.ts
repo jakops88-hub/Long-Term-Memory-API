@@ -39,25 +39,33 @@ export interface IMemoryRepository {
 
 export class MemoryRepository implements IMemoryRepository {
   async create(data: MemoryCreateInput): Promise<Memory> {
+    console.log('MemoryRepository.create: Starting...');
     const { sessionId, text, compressedText, metadata, importanceScore, recencyScore, embedding } = data;
     const embeddingString = `[${(embedding ?? []).join(',')}]`;
     const metadataJson = metadata ? JSON.stringify(metadata) : null;
 
-    const result = await prisma.$queryRaw<{ id: string }[]>`
-      INSERT INTO "Memory" (
-        "id", "sessionId", "text", "compressedText", "metadata", "importanceScore", "recencyScore", "embedding"
-      ) VALUES (
-        gen_random_uuid(), ${sessionId}, ${text}, ${compressedText}, ${metadataJson}::jsonb, ${importanceScore}, ${recencyScore}, ${embeddingString}::vector
-      )
-      RETURNING "id"
-    `;
-    const newId = result[0].id;
+    console.log('MemoryRepository.create: Executing INSERT...');
+    try {
+      const result = await prisma.$queryRaw<{ id: string }[]>`
+        INSERT INTO "Memory" (
+          "id", "sessionId", "text", "compressedText", "metadata", "importanceScore", "recencyScore", "embedding"
+        ) VALUES (
+          gen_random_uuid(), ${sessionId}, ${text}, ${compressedText}, ${metadataJson}::jsonb, ${importanceScore}, ${recencyScore}, ${embeddingString}::vector
+        )
+        RETURNING "id"
+      `;
+      console.log('MemoryRepository.create: INSERT complete, ID:', result[0]?.id);
+      const newId = result[0].id;
 
-    const newMemory = await this.findById(newId);
-    if (!newMemory) {
-      throw new Error('Failed to retrieve memory immediately after creation.');
+      const newMemory = await this.findById(newId);
+      if (!newMemory) {
+        throw new Error('Failed to retrieve memory immediately after creation.');
+      }
+      return newMemory;
+    } catch (error) {
+      console.error('MemoryRepository.create: Error', error);
+      throw error;
     }
-    return newMemory;
   }
 
   async findById(id: string): Promise<Memory | null> {
@@ -107,22 +115,28 @@ export class MemoryRepository implements IMemoryRepository {
   }
 
   async findDuplicate(sessionId: string, embedding: number[]): Promise<DuplicateMemory | null> {
+    console.log('MemoryRepository.findDuplicate: Starting...');
     const embeddingString = `[${embedding.join(',')}]`;
     const similarityThreshold = 0.95;
 
-    const results = await prisma.$queryRaw<DuplicateMemory[]>`
-      SELECT "id"
-      FROM "Memory"
-      WHERE
-        "sessionId" = ${sessionId} AND
-        "isDeleted" = false AND
-        "createdAt" >= NOW() - interval '24 hours' AND
-        1 - (embedding <=> ${embeddingString}::vector) > ${similarityThreshold}
-      ORDER BY 1 - (embedding <=> ${embeddingString}::vector) DESC
-      LIMIT 1
-    `;
-
-    return results.length > 0 ? results[0] : null;
+    try {
+      const results = await prisma.$queryRaw<DuplicateMemory[]>`
+        SELECT "id"
+        FROM "Memory"
+        WHERE
+          "sessionId" = ${sessionId} AND
+          "isDeleted" = false AND
+          "createdAt" >= NOW() - interval '24 hours' AND
+          1 - (embedding <=> ${embeddingString}::vector) > ${similarityThreshold}
+        ORDER BY 1 - (embedding <=> ${embeddingString}::vector) DESC
+        LIMIT 1
+      `;
+      console.log('MemoryRepository.findDuplicate: Complete, found:', results.length);
+      return results.length > 0 ? results[0] : null;
+    } catch (error) {
+      console.error('MemoryRepository.findDuplicate: Error', error);
+      throw error;
+    }
   }
 
   async updateLastAccessed(ids: string[] | string, timestamp: Date): Promise<void> {
