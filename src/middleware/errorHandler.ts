@@ -9,21 +9,25 @@ export const errorHandler = (
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction
 ) => {
-  console.error(err); // Added for debugging
+  console.error('Global Error Handler Caught:', err);
   const isApiError = err instanceof ApiError;
   const status = isApiError ? err.status : 500;
   const code = isApiError ? err.code : 'INTERNAL_ERROR';
+  
+  const showMessage = !env.isProduction || isApiError;
+
   const message =
-    env.isProduction && !isApiError
-      ? 'Unexpected error occurred'
-      : err.message || 'Unexpected error occurred';
+    showMessage
+      ? err.message || 'Unexpected error occurred'
+      : 'Unexpected error occurred';
 
   logger.error('Request error', {
     path: req.path,
     method: req.method,
     status,
     code,
-    message
+    message,
+    stack: err.stack
   });
 
   res.status(status).json({

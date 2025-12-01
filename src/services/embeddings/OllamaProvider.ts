@@ -40,7 +40,7 @@ export class OllamaProvider implements EmbeddingProvider {
       return embedding;
     } catch (error) {
       logger.error('Ollama embedding error', { error: String(error) });
-      throw new Error('Failed to generate embedding using Ollama.');
+      throw new Error(`Failed to generate embedding using Ollama: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }
