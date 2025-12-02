@@ -101,7 +101,8 @@ export class MemoryService {
       input.sessionId,
       queryEmbedding,
       200, 
-      debugThreshold
+      debugThreshold,
+      input.query // Pass the query for hybrid search
     );
 
     // 2. Deep Logging

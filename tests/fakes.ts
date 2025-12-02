@@ -39,9 +39,10 @@ export class FakeMemoryRepository implements IMemoryRepository {
     sessionId: string,
     embedding: number[],
     limit: number,
-    minScore: number
+    minScore: number,
+    query?: string
   ): Promise<(Omit<Memory, 'embedding'> & { similarity: number })[]> {
-    console.log('Called findSimilarMemories with:', { sessionId, embedding, limit, minScore });
+    console.log('Called findSimilarMemories with:', { sessionId, embedding, limit, minScore, query });
     const similarMems = this.memories
       .filter((m) => m.sessionId === sessionId && !m.isDeleted)
       .sort((a, b) => b.importanceScore - a.importanceScore)
@@ -199,6 +200,6 @@ export class FakeEmbeddingProvider implements EmbeddingProvider {
 
   async generateEmbedding(text: string): Promise<number[]> {
     const seed = text.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) * this.vectorValue;
-    return Array.from({ length: 8 }, (_v, idx) => ((seed + idx * 7) % 1000) / 1000);
+    return Array.from({ length: 768 }, (_v, idx) => ((seed + idx * 7) % 1000) / 1000);
   }
 }

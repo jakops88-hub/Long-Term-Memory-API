@@ -21,7 +21,8 @@ export interface IMemoryRepository {
     sessionId: string,
     embedding: number[],
     limit: number,
-    minScore: number
+    minScore: number,
+    query?: string
   ): Promise<MemoryWithSimilarity[]>;
   findDuplicate(sessionId: string, embedding: number[]): Promise<DuplicateMemory | null>;
   updateLastAccessed(ids: string[] | string, timestamp: Date): Promise<void>;
@@ -70,13 +71,48 @@ export class MemoryRepository implements IMemoryRepository {
     sessionId: string,
     embedding: number[],
     limit: number,
-    minScore: number
+    minScore: number,
+    query?: string
   ): Promise<MemoryWithSimilarity[]> {
     const embeddingString = `[${embedding.join(',')}]`;
     
     // Hämta vikter från env, med fallback om de saknas
     const simWeight = env.scoringWeights.similarity ?? 0.5;
-    const impWeight = env.scoringWeights.importance ?? 0.3;
+    const recencyWeight = env.scoringWeights.recency ?? 0.2;
+    const keywordWeight = 0.3; // Default weight for keyword search
+
+    if (query) {
+      // Hybrid Search Logic
+      // Normalization: ts_rank / (ts_rank + 1) to map [0, inf) -> [0, 1)
+      return prisma.$queryRaw<MemoryWithSimilarity[]>`
+        SELECT
+          "id",
+          "sessionId",
+          "text",
+          "compressedText",
+          "metadata",
+          "importanceScore",
+          "recencyScore",
+          "createdAt",
+          "lastAccessedAt",
+          "isDeleted",
+          (
+            (1 - (embedding <=> ${embeddingString}::vector)) * ${simWeight} +
+            (ts_rank("text_search", websearch_to_tsquery('english', ${query})) / (ts_rank("text_search", websearch_to_tsquery('english', ${query})) + 1)) * ${keywordWeight} +
+            (COALESCE("recencyScore", 0) * ${recencyWeight})
+          ) as similarity
+        FROM "Memory"
+        WHERE
+          "sessionId" = ${sessionId} AND
+          "isDeleted" = false AND
+          (
+            1 - (embedding <=> ${embeddingString}::vector) >= ${minScore} OR
+            "text_search" @@ websearch_to_tsquery('english', ${query})
+          )
+        ORDER BY similarity DESC
+        LIMIT ${limit};
+      `;
+    }
 
     // FIX: Vi använder hela uttrycket i ORDER BY för att undvika problem med alias
     // FIX: Vi castar parametern explicit till vector
