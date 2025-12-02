@@ -1,124 +1,111 @@
 # MemVault Architecture Documentation
 
-> **Pragmatic Memory-as-a-Service for AI Agents**
+> **The "External Hard Drive" for AI Agents**
 
-This document serves as the technical source of truth for **MemVault**. It outlines the design philosophy, architectural decisions, and core systems that power this self-hostable RAG (Retrieval-Augmented Generation) solution.
+This document serves as the technical source of truth for **MemVault**. It outlines the design philosophy, architectural decisions, and the sophisticated retrieval engine that powers this self-hostable Memory-as-a-Service API.
 
 ---
 
 ## 1. Design Philosophy
 
-MemVault was born out of "boilerplate fatigue." Every AI agent project starts with the same friction: setting up a vector database, writing chunking logic, handling embedding API failures, and managing context windows.
+MemVault was built to solve the "Context Window Problem" without the bloat of complex agent frameworks.
 
-Our philosophy is **Pragmatism over Complexity**.
+### Pragmatism over Complexity
+Many memory systems attempt to be an entire "Operating System" for agents (like MemGPT), managing control flow, tools, and recursive thought loops. **MemVault takes a different approach.**
 
-*   **Monolith by Design:** We deliberately chose a monolithic API wrapper approach. Microservices introduce network latency and deployment complexity that is unnecessary for 99% of RAG use cases. MemVault is a single Docker container you can spin up anywhere.
-*   **Database Convergence:** Instead of maintaining a relational DB (Postgres) *and* a vector DB (Pinecone/Weaviate), we use **PostgreSQL for everything**. This reduces operational overhead and ensures transactional integrity between metadata and vectors.
-*   **True Local First:** While we support OpenAI, MemVault is designed to run 100% offline using Ollama. Privacy and cost-control are first-class citizens, not afterthoughts.
+We act as a simple, dumb, but highly efficient **External Hard Drive**.
+*   **We do not** manage your agent's loop.
+*   **We do not** execute code.
+*   **We do** store and retrieve information with extreme precision.
+
+This "API Wrapper" approach allows MemVault to be dropped into *any* existing agent stack (LangChain, AutoGen, or raw Python scripts) without refactoring the agent's core logic.
+
+### Local-First & Offline Capable
+Privacy and cost are major barriers to AI adoption. MemVault is designed to run **100% Offline**.
+*   By integrating with **Ollama**, we support local embedding generation (using `nomic-embed-text`).
+*   The entire stack (DB, API, Visualizer) runs in Docker, making it air-gap friendly.
 
 ---
 
-## 2. The Tech Stack (Decision Log)
+## 2. The Tech Stack
 
 | Component | Choice | Rationale |
 | :--- | :--- | :--- |
-| **Runtime** | **Node.js & TypeScript** | Node.js handles I/O-heavy workloads (like API proxying) efficiently. TypeScript provides strict type safety, which is critical when handling complex vector arrays (e.g., `number[]` of length 768) to prevent runtime math errors. |
-| **Database** | **PostgreSQL + `pgvector`** | We rejected specialized vector DBs in favor of Postgres. **Why?** <br>1. **ACID Compliance:** Metadata updates and vector insertions happen in the same transaction.<br>2. **Hybrid Search:** We can combine vector similarity with standard SQL `WHERE` clauses (filtering by `sessionId`, `timestamp`) and Full-Text Search (`tsvector`) efficiently.<br>3. **Cost:** No extra infrastructure bill; it runs on standard RDS or a $5 VPS. |
-| **ORM** | **Prisma** | Prisma provides a type-safe interface to the database, making schema migrations (like adding vector dimensions) predictable and safe. |
-| **Visualizer** | **React + `react-force-graph-2d`** | A built-in dashboard allows developers to "see" their agent's memory. We use force-directed graphs to visualize how memories cluster semantically, aiding in debugging "hallucinations." |
+| **Runtime** | **Node.js & TypeScript** | Node.js excels at I/O-bound tasks like API proxying. TypeScript provides strict type safety, critical when handling 768-dimensional vector arrays to prevent runtime math errors. |
+| **Database** | **PostgreSQL + `pgvector`** | We bypass standard ORM methods for retrieval. Instead, we use **Native SQL (`$queryRaw`)** to leverage PostgreSQL's advanced features: `tsvector` for full-text search and `vector` operations in a single, high-performance query. |
+| **ORM** | **Prisma** | Used for schema management, migrations, and type-safe CRUD operations (creating/updating memories), while raw SQL handles the complex retrieval logic. |
+| **Visualizer** | **React + `react-force-graph-2d`** | A custom "Neural Node" rendering engine visualizes the memory space in real-time, allowing developers to debug how memories cluster semantically. |
 
 ---
 
-## 3. Core Systems & Data Flow
+## 3. The Retrieval Engine (Hybrid Search 2.0)
 
-### 3.1 Ingestion Pipeline
+The core value of MemVault is its retrieval accuracy. We do not rely solely on Vector Search, which often fails at exact keyword matching (e.g., distinguishing "Error 404" from "Error 500").
 
-The ingestion process is designed to be fail-safe and idempotent.
+We utilize a **Hybrid Scoring Algorithm** that combines three distinct signals into a single relevance score.
+
+### The Formula
+$$ \text{FinalScore} = (S \times 0.5) + (K \times 0.3) + (R \times 0.2) $$
+
+### Component 1: Semantic Similarity ($S$)
+*   **Technology:** `pgvector` (Cosine Distance)
+*   **Role:** Understands the *meaning* and *intent* behind the query.
+*   **Example:** A query for "fruit" matches a memory about "apples" even if the word "fruit" is missing.
+
+### Component 2: Exact Match / Keyword Rank ($K$)
+*   **Technology:** PostgreSQL `tsvector` & `BM25` (via `ts_rank`)
+*   **Role:** Captures specific identifiers, names, or error codes.
+*   **Example:** A query for "ID-1234" will strongly prioritize memories containing that exact string, overriding vague semantic matches.
+
+### Component 3: Temporal Decay ($R$)
+*   **Technology:** Custom Decay Function
+*   **Role:** Prioritizes recent context to prevent "Contextual Drift."
+*   **Logic:** Information from 5 minutes ago is usually more relevant to the immediate conversation than information from 5 months ago, unless the semantic match is overwhelming.
+
+---
+
+## 4. Data Flow & Architecture
+
+### Ingestion Pipeline
+The write path is designed for data integrity and idempotency.
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant API as API Layer (Express)
+    participant API as API Layer
     participant Prov as Embedding Provider
     participant DB as PostgreSQL
 
-    Client->>API: POST /memory/store (Text)
-    API->>API: Validate Input (Zod)
-    API->>API: Check Duplicate Cache
+    Client->>API: POST /memory/store
+    API->>API: Zod Validation (Input Sanitization)
     
-    alt Cache Miss
-        API->>Prov: Generate Embedding (Text)
-        Prov-->>API: Vector[768]
-        API->>DB: Transaction: Insert Memory + Vector
-        DB-->>API: Memory ID
-    else Cache Hit
-        API->>DB: Update LastAccessedAt
-        DB-->>API: Existing ID
+    rect rgb(240, 240, 240)
+        note right of API: Strategy Pattern
+        alt Provider = OpenAI
+            API->>Prov: Call OpenAI API
+        else Provider = Ollama
+            API->>Prov: Call Local Ollama
+        end
     end
     
+    Prov-->>API: Vector[768]
+    
+    API->>DB: Transaction (Insert Memory + Vector + Metadata)
+    DB-->>API: Success
     API-->>Client: 201 Created
 ```
 
-### 3.2 Hybrid Retrieval Algorithm
-
-Retrieval is not just about finding the "closest" vector. A memory from 3 years ago is likely less relevant than one from 5 minutes ago, even if the wording is identical.
-
-We use a **Weighted Scoring Formula** to rank memories:
-
-$$ \text{FinalScore} = (S \times W_s) + (K \times W_k) + (R \times W_r) + (I \times W_i) $$
-
-Where:
-*   **$S$ (Semantic Similarity):** Cosine similarity from `pgvector` (0.0 to 1.0). Measures *meaning*.
-*   **$K$ (Keyword Rank):** PostgreSQL `ts_rank` normalized. Measures *exact matches* (e.g., error codes, IDs).
-*   **$R$ (Recency Decay):** A function that decays score based on `createdAt`. Prevents **Contextual Drift** by prioritizing fresh information.
-*   **$I$ (Importance):** A manual override score (0.0 to 1.0) assigned by the agent to "pin" critical memories (e.g., "User's name is Alice").
-
----
-
-## 4. Provider Architecture (The "Brain")
-
-MemVault uses the **Strategy Pattern** to handle embeddings. This allows the "brain" of the system to be swapped via environment variables without code changes.
-
-### The Interface
-All providers must implement the `EmbeddingProvider` interface:
-
-```typescript
-interface EmbeddingProvider {
-  generateEmbedding(text: string): Promise<number[]>;
-  isEnabled(): boolean;
-}
-```
-
-### Implementations
-
-1.  **`OpenAIEmbeddingProvider`**:
-    *   Uses `text-embedding-3-small`.
-    *   Best for production accuracy and multilingual support.
-    *   Requires `OPENAI_API_KEY`.
-
-2.  **`OllamaProvider`**:
-    *   Connects to a local Ollama instance.
-    *   Default model: `nomic-embed-text` (768 dimensions).
-    *   **Zero Latency Cost:** Ideal for local development or air-gapped environments.
-    *   Activated by setting `EMBEDDING_PROVIDER=ollama`.
+### Provider Pattern
+The system uses a strict `EmbeddingProvider` interface to allow hot-swapping of "brains."
+*   **Cloud Mode:** Uses `OpenAIEmbeddingProvider` (High accuracy, paid).
+*   **Local Mode:** Uses `OllamaProvider` (Private, free).
+*   **Configuration:** Switched instantly via the `EMBEDDING_PROVIDER` environment variable.
 
 ---
 
 ## 5. Security & Scalability
 
-### Security
-*   **Authentication:** The API is protected by a Bearer Token system (`ADMIN_API_KEY`). Middleware validates this token before any controller logic executes.
-*   **Input Sanitization:** All inputs are validated via `Zod` schemas. SQL injection is prevented by Prisma's parameterized queries and strict typing.
-*   **CORS:** Configurable CORS policies ensure only authorized frontends (like the visualizer) can access the API.
-
-### Scalability
-*   **Indexing:** We utilize **HNSW (Hierarchical Navigable Small World)** indexes via `pgvector`. This allows for approximate nearest neighbor search, which is orders of magnitude faster than exact search (IVFFlat) as the dataset grows to millions of vectors.
-*   **Pruning:** A background job (configurable via cron) automatically "forgets" low-importance, old memories to keep the database performant and the context relevant.
-
----
-
-## 6. Future Roadmap
-
-*   [ ] **Multi-Tenancy:** Support for multiple distinct "Agents" with isolated memory spaces.
-*   [ ] **GraphRAG:** Implementing knowledge graph edges between memories for multi-hop reasoning.
-*   [ ] **Binary Quantization:** Reducing vector size for 10x faster search at scale.
+*   **Authentication:** Admin-level access is secured via `ADMIN_API_KEY` middleware.
+*   **Rate Limiting:** Built-in protection against DoS attacks using a sliding window algorithm.
+*   **Input Sanitization:** All incoming JSON bodies are strictly validated against Zod schemas to prevent injection attacks or malformed data.
+*   **Indexing:** We utilize **HNSW (Hierarchical Navigable Small World)** indexes for vector fields. This enables approximate nearest neighbor search, allowing the system to scale to millions of memories with sub-millisecond retrieval times.
