@@ -79,6 +79,7 @@ export class MemoryRepository implements IMemoryRepository {
     // Hämta vikter från env, med fallback om de saknas
     const simWeight = env.scoringWeights.similarity ?? 0.5;
     const recencyWeight = env.scoringWeights.recency ?? 0.2;
+    const impWeight = env.scoringWeights.importance ?? 0.3;
     const keywordWeight = 0.3; // Default weight for keyword search
 
     if (query) {
