@@ -120,6 +120,11 @@ export class MemoryService {
     // 3. Apply Configurable Threshold
     const minScore = input.minScore ?? env.minSimilarityScore;
     let filteredCandidates = candidates.filter((c) => c.similarity >= minScore);
+    
+    console.log(
+      `Filtered Results (minScore: ${minScore}): ${filteredCandidates.length} matches kept out of ${candidates.length} raw candidates.`
+    );
+
     let isLowConfidence = false;
 
     // 4. Low Confidence Fallback

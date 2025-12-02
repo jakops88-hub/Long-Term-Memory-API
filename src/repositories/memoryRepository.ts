@@ -77,14 +77,17 @@ export class MemoryRepository implements IMemoryRepository {
     const embeddingString = `[${embedding.join(',')}]`;
     
     // Hämta vikter från env, med fallback om de saknas
-    const simWeight = env.scoringWeights.similarity ?? 0.5;
+    // Justerade vikter för att prioritera semantik (mening) över nyckelord
+    const simWeight = env.scoringWeights.similarity ?? 0.6;
     const recencyWeight = env.scoringWeights.recency ?? 0.2;
+    const keywordWeight = 0.2; 
     const impWeight = env.scoringWeights.importance ?? 0.3;
-    const keywordWeight = 0.3; // Default weight for keyword search
 
     if (query) {
       // Hybrid Search Logic
-      // Normalization: ts_rank / (ts_rank + 1) to map [0, inf) -> [0, 1)
+      // Recency: Beräknas dynamiskt baserat på ålder i dagar. 
+      // Formel: 1 / (1 + ålder_i_dagar). Nytt minne = 1.0, 1 dag gammalt = 0.5, etc.
+      // Vi använder EXTRACT(EPOCH FROM ...) för att få sekunder.
       return prisma.$queryRaw<MemoryWithSimilarity[]>`
         SELECT
           "id",
@@ -100,7 +103,7 @@ export class MemoryRepository implements IMemoryRepository {
           (
             (1 - (embedding <=> ${embeddingString}::vector)) * ${simWeight} +
             (ts_rank("text_search", websearch_to_tsquery('english', ${query})) / (ts_rank("text_search", websearch_to_tsquery('english', ${query})) + 1)) * ${keywordWeight} +
-            (COALESCE("recencyScore", 0) * ${recencyWeight})
+            (1.0 / (1.0 + (EXTRACT(EPOCH FROM (NOW() - "createdAt")) / 86400.0))) * ${recencyWeight}
           ) as similarity
         FROM "Memory"
         WHERE
