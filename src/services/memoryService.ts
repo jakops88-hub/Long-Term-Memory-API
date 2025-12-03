@@ -100,6 +100,7 @@ export class MemoryService {
     const candidates = await this.memoryRepository.findSimilarMemories(
       input.sessionId,
       queryEmbedding,
+      input.query,
       200, 
       debugThreshold
     );
@@ -111,14 +112,15 @@ export class MemoryService {
       `Query: '${input.query}', Raw Candidates: ${JSON.stringify(
         topRaw.map((c) => ({
           text: c.text.substring(0, 50) + (c.text.length > 50 ? '...' : ''),
-          score: c.similarity.toFixed(4)
+          score: c.score.toFixed(4),
+          similarity: c.similarity.toFixed(4)
         }))
       )}`
     );
 
     // 3. Apply Configurable Threshold
     const minScore = input.minScore ?? env.minSimilarityScore;
-    let filteredCandidates = candidates.filter((c) => c.similarity >= minScore);
+    let filteredCandidates = candidates.filter((c) => c.score >= minScore);
     let isLowConfidence = false;
 
     // 4. Low Confidence Fallback
@@ -126,7 +128,7 @@ export class MemoryService {
     // but flag it as low confidence.
     if (filteredCandidates.length === 0 && candidates.length > 0) {
       console.log(
-        `No matches above ${minScore}. Returning best match (${candidates[0].similarity.toFixed(
+        `No matches above ${minScore}. Returning best match (${candidates[0].score.toFixed(
           4
         )}) as low confidence.`
       );
@@ -171,6 +173,7 @@ export class MemoryService {
         compressedText: item.compressedText,
         importanceScore: item.importanceScore,
         similarity: item.similarity,
+        score: item.score,
         createdAt: item.createdAt.toISOString(),
         lastAccessedAt: accessTime.toISOString(),
         metadata: (item.metadata as Record<string, unknown> | null) || undefined,

@@ -38,10 +38,11 @@ export class FakeMemoryRepository implements IMemoryRepository {
   async findSimilarMemories(
     sessionId: string,
     embedding: number[],
+    query: string,
     limit: number,
     minScore: number
-  ): Promise<(Omit<Memory, 'embedding'> & { similarity: number })[]> {
-    console.log('Called findSimilarMemories with:', { sessionId, embedding, limit, minScore });
+  ): Promise<(Omit<Memory, 'embedding'> & { similarity: number; score: number })[]> {
+    console.log('Called findSimilarMemories with:', { sessionId, embedding, query, limit, minScore });
     const similarMems = this.memories
       .filter((m) => m.sessionId === sessionId && !m.isDeleted)
       .sort((a, b) => b.importanceScore - a.importanceScore)
@@ -49,7 +50,7 @@ export class FakeMemoryRepository implements IMemoryRepository {
       .map((m) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { embedding, ...rest } = m;
-        return { ...rest, similarity: m.importanceScore };
+        return { ...rest, similarity: m.importanceScore, score: m.importanceScore };
       });
 
     return Promise.resolve(similarMems);
