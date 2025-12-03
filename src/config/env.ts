@@ -5,7 +5,7 @@ dotenv.config();
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  SUPABASE_URL: z.string().min(1, 'SUPABASE_URL is required'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(60),
@@ -49,7 +49,7 @@ const raw = parsed.data;
 
 export const env = {
   port: raw.PORT,
-  databaseUrl: raw.DATABASE_URL,
+  databaseUrl: raw.SUPABASE_URL,
   nodeEnv: raw.NODE_ENV,
   rateLimitWindowMs: raw.RATE_LIMIT_WINDOW_MS,
   rateLimitMaxRequests: raw.RATE_LIMIT_MAX_REQUESTS,
