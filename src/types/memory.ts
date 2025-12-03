@@ -29,6 +29,7 @@ export interface MemoryResult {
   compressedText: string;
   importanceScore: number;
   similarity: number;
+  score?: number;
   createdAt: string;
   lastAccessedAt: string;
   metadata?: Record<string, unknown>;

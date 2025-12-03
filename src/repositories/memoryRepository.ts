@@ -1,7 +1,7 @@
 import { Memory, Prisma } from '@prisma/client';
 import { env, prisma } from '../config'; // FIX: Importerar env korrekt
 
-export type MemoryWithSimilarity = Omit<Memory, 'embedding'> & { similarity: number };
+export type MemoryWithSimilarity = Omit<Memory, 'embedding'> & { similarity: number; score: number };
 export type DuplicateMemory = Pick<Memory, 'id'>;
 
 export interface MemoryCreateInput {
@@ -20,6 +20,7 @@ export interface IMemoryRepository {
   findSimilarMemories(
     sessionId: string,
     embedding: number[],
+    query: string,
     limit: number,
     minScore: number
   ): Promise<MemoryWithSimilarity[]>;
@@ -69,17 +70,17 @@ export class MemoryRepository implements IMemoryRepository {
   async findSimilarMemories(
     sessionId: string,
     embedding: number[],
+    query: string,
     limit: number,
     minScore: number
   ): Promise<MemoryWithSimilarity[]> {
     const embeddingString = `[${embedding.join(',')}]`;
     
-    // Hämta vikter från env, med fallback om de saknas
-    const simWeight = env.scoringWeights.similarity ?? 0.5;
-    const impWeight = env.scoringWeights.importance ?? 0.3;
+    // Weights for Hybrid Search
+    const vectorWeight = 0.5;
+    const keywordWeight = 0.3;
+    const recencyWeight = 0.2;
 
-    // FIX: Vi använder hela uttrycket i ORDER BY för att undvika problem med alias
-    // FIX: Vi castar parametern explicit till vector
     const results = await prisma.$queryRaw<MemoryWithSimilarity[]>`
       SELECT
         "id",
@@ -92,14 +93,18 @@ export class MemoryRepository implements IMemoryRepository {
         "createdAt",
         "lastAccessedAt",
         "isDeleted",
-        1 - (embedding <=> ${embeddingString}::vector) as similarity
+        1 - (embedding <=> ${embeddingString}::vector) as similarity,
+        (
+          (1 - (embedding <=> ${embeddingString}::vector)) * ${vectorWeight} +
+          ts_rank("contentSearch", websearch_to_tsquery('english', ${query})) * ${keywordWeight} +
+          COALESCE("recencyScore", 0) * ${recencyWeight}
+        ) as score
       FROM "Memory"
       WHERE
         "sessionId" = ${sessionId} AND
-        "isDeleted" = false AND
-        1 - (embedding <=> ${embeddingString}::vector) >= ${minScore}
+        "isDeleted" = false
       ORDER BY
-        (1 - (embedding <=> ${embeddingString}::vector)) * ${simWeight} + "importanceScore" * ${impWeight} DESC
+        score DESC
       LIMIT ${limit}
     `;
 

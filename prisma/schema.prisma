@@ -30,6 +30,9 @@ model Memory {
   createdAt      DateTime  @default(now())
   lastAccessedAt DateTime  @default(now())
   isDeleted      Boolean   @default(false)
+  
+  // Full-text search vector (Managed by migration)
+  contentSearch  Unsupported("tsvector")?
 
   @@index([sessionId, createdAt])
   @@index([sessionId, importanceScore])
