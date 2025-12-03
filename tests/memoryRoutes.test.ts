@@ -28,7 +28,7 @@ describe('Memory routes', () => {
       data: {
         data: [
           {
-            embedding: Array.from({ length: 512 }, () => Math.random())
+            embedding: Array.from({ length: 768 }, () => Math.random())
           }
         ]
       }

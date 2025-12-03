@@ -24,7 +24,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
         {
           input: text,
           model: 'text-embedding-3-small',
-          dimensions: 512
+          dimensions: 768
         },
         {
           headers: {
