@@ -27,7 +27,6 @@ model Memory {
   importanceScore Float
   recencyScore    Float?
   embedding       Unsupported("vector(768)")?
-  text_search     Unsupported("tsvector")?
   createdAt      DateTime  @default(now())
   lastAccessedAt DateTime  @default(now())
   isDeleted      Boolean   @default(false)

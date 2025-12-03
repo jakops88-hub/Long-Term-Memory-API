@@ -96,7 +96,7 @@ export class MemoryRepository implements IMemoryRepository {
         1 - (embedding <=> ${embeddingString}::vector) as similarity,
         (
           (1 - (embedding <=> ${embeddingString}::vector)) * ${vectorWeight} +
-          ts_rank("contentSearch", websearch_to_tsquery('english', ${query})) * ${keywordWeight} +
+          ts_rank_cd("contentSearch", websearch_to_tsquery('simple', ${query})) * ${keywordWeight} +
           COALESCE("recencyScore", 0) * ${recencyWeight}
         ) as score
       FROM "Memory"
