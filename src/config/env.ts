@@ -18,10 +18,14 @@ const envSchema = z.object({
   OLLAMA_URL: z.string().url().default('http://127.0.0.1:11434'),
   OLLAMA_MODEL: z.string().default('nomic-embed-text'),
 
-  // Redis settings
-  REDIS_HOST: z.string().default('localhost'),
-  REDIS_PORT: z.coerce.number().default(6379),
+  // Redis settings (Traditional)
+  REDIS_HOST: z.string().optional(),
+  REDIS_PORT: z.coerce.number().optional(),
   REDIS_PASSWORD: z.string().optional(),
+
+  // Upstash Redis REST API (recommended for serverless)
+  UPSTASH_REDIS_REST_URL: z.string().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
   // LLM for Graph Extraction
   LLM_PROVIDER: z.enum(['openai']).default('openai'),
@@ -83,10 +87,14 @@ export const env = {
   ollamaUrl: raw.OLLAMA_URL,
   ollamaModel: raw.OLLAMA_MODEL,
 
-  // Redis
+  // Redis (Traditional)
   redisHost: raw.REDIS_HOST,
   redisPort: raw.REDIS_PORT,
   redisPassword: raw.REDIS_PASSWORD,
+
+  // Upstash Redis REST API
+  upstashRedisRestUrl: raw.UPSTASH_REDIS_REST_URL,
+  upstashRedisRestToken: raw.UPSTASH_REDIS_REST_TOKEN,
 
   // LLM
   llmProvider: raw.LLM_PROVIDER,
