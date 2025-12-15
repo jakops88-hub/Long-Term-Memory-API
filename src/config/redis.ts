@@ -31,8 +31,7 @@ export const redis = useUpstash
 export const redisForBullMQ = useUpstash
   ? (() => {
       const IORedis = require('ioredis');
-      // Upstash also provides traditional Redis connection
-      // Format: redis://default:PASSWORD@ENDPOINT:PORT
+      // Upstash requires TLS in production
       if (!env.redisHost) {
         console.warn('Warning: BullMQ requires ioredis connection. Add REDIS_HOST, REDIS_PORT, REDIS_PASSWORD for Upstash traditional connection.');
       }
@@ -40,8 +39,10 @@ export const redisForBullMQ = useUpstash
         host: env.redisHost || 'localhost',
         port: env.redisPort || 6379,
         password: env.redisPassword,
+        tls: env.nodeEnv === 'production' ? {} : undefined, // Enable TLS for Upstash
         maxRetriesPerRequest: null,
-        enableReadyCheck: false
+        enableReadyCheck: false,
+        family: 4 // Force IPv4
       });
     })()
   : (() => {
