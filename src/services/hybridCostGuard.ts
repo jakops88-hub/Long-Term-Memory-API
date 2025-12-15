@@ -1,8 +1,16 @@
 import { redis } from '../config/redis';
 import { prisma } from '../config/prisma';
 import { logger } from '../config/logger';
+import { env } from '../config/env';
 import { UserContext, UserSource, AccessCheckResult, OveragePolicy } from '../types/billing';
 import { ApiError } from '../types/errors';
+import Stripe from 'stripe';
+
+// Initialize Stripe
+const stripe = new Stripe(env.stripeSecretKey || '', {
+  apiVersion: '2025-11-17.clover',
+  typescript: true,
+});
 
 /**
  * CostGuard - Unified cost control for RapidAPI and Direct (Stripe) users
@@ -15,16 +23,26 @@ export class CostGuard {
   private static readonly REDIS_BALANCE_KEY = (userId: string) => `user:${userId}:balance`;
   private static readonly REDIS_LOCK_KEY = (userId: string) => `user:${userId}:lock`;
   
-  // Overage policy for Pro tier Direct users
+  // Pricing and overage policy - TOKEN-BASED SYSTEM
+  // Hobby: $29/month - 100,000 tokens included, HARD LIMIT (no overage)
+  // Pro: $99/month - 1,000,000 tokens included, then $0.003 per API call overage
+  private static readonly PRICING = {
+    COST_PER_API_CALL: 0.3, // $0.003 in cents (overage rate for Pro)
+    HOBBY_MONTHLY: 2900, // $29.00
+    HOBBY_INCLUDED_TOKENS: 100_000, // 100k tokens included with Hobby plan
+    PRO_MONTHLY: 9900, // $99.00
+    PRO_INCLUDED_TOKENS: 1_000_000 // 1M tokens included with Pro plan
+  };
+
   private static readonly OVERAGE_POLICY: Record<string, OveragePolicy> = {
     PRO: {
       enabled: true,
-      maxNegativeBalance: -2000, // -$20.00
+      maxNegativeBalance: -100000, // -$1000.00 (unlimited with billing)
       triggerInvoice: true
     },
     HOBBY: {
       enabled: false,
-      maxNegativeBalance: 0,
+      maxNegativeBalance: 0, // Hard limit at $0
       triggerInvoice: false
     },
     FREE: {
@@ -299,41 +317,122 @@ export class CostGuard {
     logger.info('Triggering Stripe invoice for overage', { userId, amount });
     
     try {
-      const billing = await prisma.userBilling.findUnique({
-        where: { userId },
-        select: { stripeCustomerId: true }
+      // Get user with billing info
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { billing: true }
       });
 
-      if (!billing?.stripeCustomerId) {
-        logger.warn('No Stripe customer ID for user', { userId });
+      if (!user) {
+        logger.error('User not found for invoice', { userId });
         return;
       }
 
-      // TODO: Integrate with Stripe API
-      // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-      // await stripe.invoiceItems.create({
-      //   customer: billing.stripeCustomerId,
-      //   amount: Math.ceil(amount),
-      //   currency: 'usd',
-      //   description: 'MemVault API overage charges'
-      // });
-      // await stripe.invoices.create({
-      //   customer: billing.stripeCustomerId,
-      //   auto_advance: true
-      // });
+      let customerId = user.billing?.stripeCustomerId;
 
-      logger.info('Stripe invoice created (TODO: implement)', { userId, amount });
+      // Create Stripe customer if doesn't exist
+      if (!customerId) {
+        logger.info('Creating Stripe customer', { userId, email: user.email });
+        
+        const customer = await stripe.customers.create({
+          email: user.email || undefined,
+          name: user.email || `User ${userId}`,
+          metadata: { userId },
+          description: 'MemVault API User'
+        });
+
+        customerId = customer.id;
+
+        // Save customer ID to database
+        await prisma.userBilling.update({
+          where: { userId },
+          data: { stripeCustomerId: customerId }
+        });
+
+        logger.info('Stripe customer created', { userId, customerId });
+      }
+
+      // Calculate number of API calls from amount (at $0.003 per call)
+      const apiCalls = Math.round(amount / CostGuard.PRICING.COST_PER_API_CALL);
+
+      // Create invoice item for overage
+      const invoiceItem = await stripe.invoiceItems.create({
+        customer: customerId,
+        amount: Math.round(amount), // Ensure integer cents
+        currency: 'usd',
+        description: `MemVault API Overage - ${apiCalls.toLocaleString()} calls @ $0.003/call (beyond 1M included tokens) - ${new Date().toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })}`,
+        metadata: {
+          userId,
+          type: 'overage',
+          apiCalls: apiCalls.toString(),
+          pricePerCall: '0.003',
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      logger.info('Invoice item created', { 
+        userId, 
+        invoiceItemId: invoiceItem.id, 
+        amount 
+      });
+
+      // Create and finalize invoice
+      const invoice = await stripe.invoices.create({
+        customer: customerId,
+        auto_advance: true, // Automatically finalize and attempt payment
+        collection_method: 'charge_automatically',
+        description: 'MemVault API Usage Overage',
+        metadata: {
+          userId,
+          type: 'overage'
+        }
+      });
+
+      // Finalize the invoice (this triggers payment attempt)
+      await stripe.invoices.finalizeInvoice(invoice.id);
+
+      logger.info('Stripe invoice created and finalized', { 
+        userId, 
+        invoiceId: invoice.id,
+        amount,
+        status: invoice.status,
+        hostedInvoiceUrl: invoice.hosted_invoice_url
+      });
+
+      // Note: Webhook will handle updating balance when payment succeeds
+      
     } catch (error) {
       logger.error('Failed to trigger Stripe invoice', {
         userId,
         amount,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
       });
+      
+      // Don't throw - we don't want to block the operation if invoicing fails
+      // Just log the error and continue
     }
   }
 
   /**
-   * Calculate estimated cost for an operation
+   * Calculate cost for a single API call
+   * Fixed rate: $0.003 per call
+   * 
+   * @returns Cost in cents (0.3 cents = $0.003)
+   */
+  static calculateApiCallCost(): number {
+    return this.PRICING.COST_PER_API_CALL;
+  }
+
+  /**
+   * Calculate estimated cost for an operation (LEGACY - for token-based billing if needed)
+   * 
+   * NOTE: Current pricing is per-API-call ($0.003), not per-token.
+   * This function is kept for backward compatibility or future token-based pricing.
    * 
    * @param tokenCount - Estimated token count
    * @param hasEmbedding - Whether operation includes embedding generation
@@ -345,22 +444,27 @@ export class CostGuard {
     hasEmbedding: boolean = false,
     hasGraphExtraction: boolean = false
   ): number {
+    // NEW PRICING MODEL: Fixed $0.003 per API call
+    // Ignore token count and just return per-call cost
+    return this.PRICING.COST_PER_API_CALL;
+    
+    // OLD TOKEN-BASED PRICING (commented out):
     // Base cost: $0.50 per 1M tokens (GPT-4o-mini pricing)
-    let cost = (tokenCount / 1_000_000) * 50;
-    
-    // Embedding cost: ~$0.02 per 1M tokens (text-embedding-3-small)
-    if (hasEmbedding) {
-      cost += (tokenCount / 1_000_000) * 2;
-    }
-    
-    // Graph extraction cost: ~3x base cost (structured output)
-    if (hasGraphExtraction) {
-      cost *= 3;
-    }
-    
-    // Add 30% profit margin
-    cost *= 1.3;
-    
-    return Math.ceil(cost); // Round up to nearest cent
+    // let cost = (tokenCount / 1_000_000) * 50;
+    // 
+    // // Embedding cost: ~$0.02 per 1M tokens (text-embedding-3-small)
+    // if (hasEmbedding) {
+    //   cost += (tokenCount / 1_000_000) * 2;
+    // }
+    // 
+    // // Graph extraction cost: ~3x base cost (structured output)
+    // if (hasGraphExtraction) {
+    //   cost *= 3;
+    // }
+    // 
+    // // Add 30% profit margin
+    // cost *= 1.3;
+    // 
+    // return Math.ceil(cost); // Round up to nearest cent
   }
 }
