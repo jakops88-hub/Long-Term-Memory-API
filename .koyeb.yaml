@@ -1,0 +1,97 @@
+# Koyeb Service Configuration
+# This file enables Infrastructure as Code deployment
+# Documentation: https://www.koyeb.com/docs/build-and-deploy/deploy-from-git
+
+services:
+  - name: memvault-api
+    type: web
+    
+    # GitHub repository
+    git:
+      repository: github.com/jakops88-hub/Long-Term-Memory-API
+      branch: main
+      build_command: ""  # Dockerfile handles build
+      run_command: ""    # Dockerfile handles startup
+    
+    # Use Dockerfile for build
+    docker:
+      dockerfile: Dockerfile
+    
+    # Instance configuration
+    instance_type: nano  # Free tier
+    regions:
+      - fra  # Frankfurt (closest to Sweden)
+    
+    # Scaling
+    replicas: 1
+    autoscaling:
+      min: 1
+      max: 1
+    
+    # Port configuration
+    ports:
+      - port: 4000
+        protocol: http
+    
+    # Health check
+    health_check:
+      http:
+        path: /health
+        port: 4000
+      initial_delay: 30
+      timeout: 10
+      interval: 30
+    
+    # Environment variables (add sensitive values in Koyeb UI)
+    env:
+      - name: NODE_ENV
+        value: production
+      - name: PORT
+        value: "4000"
+      - name: ENABLE_EMBEDDINGS
+        value: "true"
+      - name: EMBEDDING_PROVIDER
+        value: openai
+      - name: LLM_PROVIDER
+        value: openai
+      - name: LLM_MODEL
+        value: gpt-4o-mini
+      - name: COST_PER_1K_TOKENS
+        value: "0.0001"
+      - name: PROFIT_MARGIN
+        value: "1.5"
+      - name: RATE_LIMIT_WINDOW_MS
+        value: "60000"
+      - name: RATE_LIMIT_MAX_REQUESTS
+        value: "60"
+      - name: CORS_ORIGIN
+        value: "*"
+      - name: PRUNE_MAX_AGE_DAYS
+        value: "90"
+      - name: PRUNE_INACTIVE_DAYS
+        value: "30"
+      - name: PRUNE_IMPORTANCE_THRESHOLD
+        value: "0.4"
+      - name: WEIGHT_SIMILARITY
+        value: "0.6"
+      - name: WEIGHT_RECENCY
+        value: "0.2"
+      - name: WEIGHT_IMPORTANCE
+        value: "0.2"
+      - name: MIN_SIMILARITY_SCORE
+        value: "0.5"
+      - name: MAX_TEXT_LENGTH
+        value: "4000"
+      
+      # NOTE: Add these secrets via Koyeb UI:
+      # - SUPABASE_URL
+      # - DIRECT_URL
+      # - OPENAI_API_KEY
+      # - REDIS_HOST
+      # - REDIS_PORT
+      # - REDIS_PASSWORD
+      # - STRIPE_PUBLISHABLE_KEY
+      # - STRIPE_SECRET_KEY
+      # - STRIPE_WEBHOOK_SECRET
+      # - RAPIDAPI_PROXY_SECRET
+      # - ADMIN_API_KEY
