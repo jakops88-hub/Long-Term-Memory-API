@@ -18,6 +18,19 @@ const envSchema = z.object({
   OLLAMA_URL: z.string().url().default('http://127.0.0.1:11434'),
   OLLAMA_MODEL: z.string().default('nomic-embed-text'),
 
+  // Redis settings
+  REDIS_HOST: z.string().default('localhost'),
+  REDIS_PORT: z.coerce.number().default(6379),
+  REDIS_PASSWORD: z.string().optional(),
+
+  // LLM for Graph Extraction
+  LLM_PROVIDER: z.enum(['openai']).default('openai'),
+  LLM_MODEL: z.string().default('gpt-4o-mini'),
+
+  // Cost Guard
+  COST_PER_1K_TOKENS: z.coerce.number().default(0.0001), // $0.0001 per 1k tokens
+  PROFIT_MARGIN: z.coerce.number().default(1.5), // 50% margin
+
   // New weighting keys; also support legacy SCORING_* for compatibility
   WEIGHT_SIMILARITY: z.coerce.number().optional(),
   WEIGHT_RECENCY: z.coerce.number().optional(),
@@ -34,7 +47,15 @@ const envSchema = z.object({
   // Pruning settings
   PRUNE_MAX_AGE_DAYS: z.coerce.number().default(90),
   PRUNE_INACTIVE_DAYS: z.coerce.number().default(30),
-  PRUNE_IMPORTANCE_THRESHOLD: z.coerce.number().default(0.3)
+  PRUNE_IMPORTANCE_THRESHOLD: z.coerce.number().default(0.3),
+
+  // Stripe Configuration
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+
+  // Hybrid Authentication
+  RAPIDAPI_PROXY_SECRET: z.string().optional()
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -62,6 +83,19 @@ export const env = {
   ollamaUrl: raw.OLLAMA_URL,
   ollamaModel: raw.OLLAMA_MODEL,
 
+  // Redis
+  redisHost: raw.REDIS_HOST,
+  redisPort: raw.REDIS_PORT,
+  redisPassword: raw.REDIS_PASSWORD,
+
+  // LLM
+  llmProvider: raw.LLM_PROVIDER,
+  llmModel: raw.LLM_MODEL,
+
+  // Cost Guard
+  costPer1kTokens: raw.COST_PER_1K_TOKENS,
+  profitMargin: raw.PROFIT_MARGIN,
+
   scoringWeights: {
     similarity:
       raw.WEIGHT_SIMILARITY ??
@@ -84,6 +118,15 @@ export const env = {
     inactiveDays: raw.PRUNE_INACTIVE_DAYS,
     importanceThreshold: raw.PRUNE_IMPORTANCE_THRESHOLD
   },
+  
+  // Stripe
+  stripePublishableKey: raw.STRIPE_PUBLISHABLE_KEY,
+  stripeSecretKey: raw.STRIPE_SECRET_KEY,
+  stripeWebhookSecret: raw.STRIPE_WEBHOOK_SECRET,
+  
+  // Authentication
+  rapidApiProxySecret: raw.RAPIDAPI_PROXY_SECRET,
+  
   isProduction: raw.NODE_ENV === 'production',
   isTest: raw.NODE_ENV === 'test'
 };

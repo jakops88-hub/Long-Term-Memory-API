@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { MemoryService } from '../services/memoryService';
+// Legacy controller - keeping for backward compatibility
 
 export class SessionController {
-  constructor(private memoryService: MemoryService) {}
+  constructor(private memoryService: any) {} // Legacy parameter, not used
 
   getSession = async (req: Request, res: Response, next: NextFunction) => {
     try {

@@ -67,7 +67,7 @@ export class MemoryService {
 
     return {
       id: created.id,
-      sessionId: created.sessionId,
+      sessionId: input.sessionId, // From input, not from DB (schema doesn't have this field anymore)
       importanceScore: created.importanceScore,
       createdAt: created.createdAt.toISOString()
     };
@@ -170,7 +170,7 @@ export class MemoryService {
       results: finalResults.map((item) => ({
         id: item.id,
         text: item.text,
-        compressedText: item.compressedText,
+        compressedText: item.compressedText || item.text, // Fall back to text if compressed is null
         importanceScore: item.importanceScore,
         similarity: item.similarity,
         score: item.score,

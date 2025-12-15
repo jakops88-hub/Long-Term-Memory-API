@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { MemoryService } from '../services/memoryService';
+// Legacy controller - keeping for backward compatibility but using GraphRAG architecture internally
 
 export class MemoryController {
-  constructor(private memoryService: MemoryService) {}
+  constructor(private memoryService: any) {} // Legacy parameter, not used
 
   store = async (req: Request, res: Response, next: NextFunction) => {
     try {

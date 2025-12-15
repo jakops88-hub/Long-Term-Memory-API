@@ -9,15 +9,18 @@ import { memoryRoutes } from './routes/memoryRoutes';
 import { sessionRoutes } from './routes/sessionRoutes';
 import { healthRoutes } from './routes/healthRoutes';
 import { adminRoutes } from './routes/adminRoutes';
+import asyncMemoryRoutes from './routes/asyncMemoryRoutes';
+import billingRoutes from './routes/billingRoutes';
+import graphRAGRoutes from './routes/graphRAGRoutes';
+import webhookRoutes from './routes/webhookRoutes';
 import { MemoryController } from './controllers/memoryController';
 import { SessionController } from './controllers/sessionController';
 import { HealthController } from './controllers/healthController';
 import { AdminController } from './controllers/adminController';
-import { MemoryService } from './services/memoryService';
 import { EmbeddingProvider } from './services/embeddings/EmbeddingProvider';
 
 export interface AppDependencies {
-  memoryService: MemoryService;
+  memoryService: any; // Legacy - not used in GraphRAG architecture
   embeddingProvider?: EmbeddingProvider;
 }
 
@@ -25,6 +28,10 @@ export const createApp = ({ memoryService, embeddingProvider }: AppDependencies)
   const app = express();
 
   app.use(helmet());
+  
+  // IMPORTANT: Webhook route MUST come BEFORE express.json()
+  // Stripe needs raw body for signature verification
+  app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
   
   // FIX: Smartare CORS som tillåter alla dina Vercel-versioner
   app.use(
@@ -66,6 +73,9 @@ export const createApp = ({ memoryService, embeddingProvider }: AppDependencies)
 
   // Montera routes
   apiRouter.use('/memory', memoryRoutes(memoryController));
+  apiRouter.use('/memory', asyncMemoryRoutes); // Async ingestion
+  apiRouter.use('/billing', billingRoutes); // Cost Guard & Billing
+  apiRouter.use('/graphrag', graphRAGRoutes); // GraphRAG recursive retrieval
   apiRouter.use('/session', sessionRoutes(sessionController));
   apiRouter.use('/admin', adminRoutes(adminController));
   apiRouter.use(healthRoutes(healthController));

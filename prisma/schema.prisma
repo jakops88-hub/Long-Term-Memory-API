@@ -10,32 +10,155 @@ datasource db {
   extensions = [vector]
 }
 
+// ============================================================================
+// USER & BILLING (Multi-Tenancy + Cost Guard)
+// ============================================================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  billing       UserBilling?
+  memories      Memory[]
+  entities      Entity[]
+  relationships Relationship[]
+
+  @@index([email])
+}
+
+model UserBilling {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Billing State
+  creditsBalance   Int      @default(0) // Atomic counter in Redis, persisted here
+  tier             String   @default("FREE") // FREE, HOBBY, PRO
+  stripeCustomerId String?  @unique
+  
+  // Timestamps
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+  @@index([tier])
+}
+
+// ============================================================================
+// THE TRINITY OF MEMORY (GraphRAG Core)
+// ============================================================================
+
+model Memory {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Content
+  text           String
+  compressedText String?
+  metadata       Json?
+
+  // Embeddings & Search
+  embedding     Unsupported("vector(768)")?
+  contentSearch Unsupported("tsvector")? // Full-text search (managed by migration)
+
+  // Scoring
+  importanceScore Float   @default(0.5)
+  recencyScore    Float?
+  confidence      Float   @default(1.0) // How "trustworthy" is this memory
+
+  // Lifecycle
+  createdAt      DateTime @default(now())
+  lastAccessedAt DateTime @default(now())
+  isDeleted      Boolean  @default(false)
+  isConsolidated Boolean  @default(false) // Has this been merged into Entities?
+
+  // Relations
+  sourceEntityId String? // If this Memory was extracted from an Entity
+  sourceEntity   Entity? @relation("MemorySource", fields: [sourceEntityId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([userId, importanceScore])
+  @@index([userId, isDeleted])
+  @@index([isConsolidated])
+}
+
+model Entity {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Identity
+  name        String // e.g., "John Doe", "iPhone 15", "Paris"
+  type        String // e.g., "PERSON", "PRODUCT", "LOCATION", "CONCEPT"
+  description String? // Auto-generated summary of what this entity represents
+
+  // Embeddings (for semantic similarity between entities)
+  embedding Unsupported("vector(768)")?
+
+  // Scoring
+  importance Float   @default(0.5) // How central is this entity in the knowledge graph
+  confidence Float   @default(1.0) // How certain are we about this entity's existence
+
+  // Lifecycle
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lastAccessedAt DateTime @default(now())
+  isDeleted      Boolean  @default(false)
+
+  // Relations
+  memoriesExtracted Memory[]       @relation("MemorySource")
+  outgoingEdges     Relationship[] @relation("FromEntity")
+  incomingEdges     Relationship[] @relation("ToEntity")
+
+  @@unique([userId, name, type]) // Prevent duplicate entities per user
+  @@index([userId, type])
+  @@index([userId, importance])
+  @@index([userId, isDeleted])
+}
+
+model Relationship {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Graph Edge
+  fromEntityId String
+  fromEntity   Entity @relation("FromEntity", fields: [fromEntityId], references: [id], onDelete: Cascade)
+  
+  toEntityId   String
+  toEntity     Entity @relation("ToEntity", fields: [toEntityId], references: [id], onDelete: Cascade)
+
+  // Predicate (the "verb" of the relationship)
+  predicate String // e.g., "OWNS", "LIKES", "WORKS_AT", "LOCATED_IN"
+  
+  // Optional metadata
+  metadata   Json?
+  confidence Float   @default(1.0) // How certain are we about this relationship
+  weight     Float   @default(1.0) // Strength of the relationship (for graph traversal)
+
+  // Lifecycle
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDeleted Boolean  @default(false)
+
+  @@unique([userId, fromEntityId, toEntityId, predicate]) // Prevent duplicate edges
+  @@index([userId, fromEntityId])
+  @@index([userId, toEntityId])
+  @@index([userId, predicate])
+  @@index([userId, isDeleted])
+}
+
+// ============================================================================
+// LEGACY SESSION MODEL (Deprecated, kept for backward compatibility)
+// ============================================================================
+
 model Session {
   id         String   @id @default(uuid())
   externalId String?  @unique
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  memories   Memory[]
-}
-
-model Memory {
-  id             String    @id @default(uuid())
-  sessionId      String
-  session        Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  text           String
-  compressedText String
-  metadata       Json?
-  importanceScore Float
-  recencyScore    Float?
-  embedding       Unsupported("vector(768)")?
-  createdAt      DateTime  @default(now())
-  lastAccessedAt DateTime  @default(now())
-  isDeleted      Boolean   @default(false)
-  
-  // Full-text search vector (Managed by migration)
-  contentSearch  Unsupported("tsvector")?
-
-  @@index([sessionId, createdAt])
-  @@index([sessionId, importanceScore])
-  @@index([sessionId, isDeleted])
 }

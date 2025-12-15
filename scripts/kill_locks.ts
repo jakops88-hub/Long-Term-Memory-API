@@ -35,8 +35,8 @@ async function main() {
 
     for (const lock of locks) {
       console.log(`Dödar PID ${lock.pid} (Status: ${lock.state}, Startad: ${lock.query_start})`);
-      // Terminera processen
-      await prisma.$queryRaw`SELECT pg_terminate_backend(${lock.pid})`;
+      // Terminera processen med explicit cast
+      await prisma.$executeRaw`SELECT pg_terminate_backend(${lock.pid}::integer)`;
       console.log(`PID ${lock.pid} terminerad.`);
     }
 

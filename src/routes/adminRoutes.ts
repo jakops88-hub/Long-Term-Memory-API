@@ -20,5 +20,14 @@ export const adminRoutes = (controller: AdminController) => {
 
   router.post('/admin/prune', adminAuth, validate(pruneSchema), controller.prune);
 
+  /**
+   * POST /api/admin/consolidate
+   * Trigger memory consolidation (Sleep Cycles)
+   * 
+   * Body (optional):
+   * - userId: string - Consolidate specific user
+   */
+  router.post('/admin/consolidate', adminAuth, controller.consolidate);
+
   return router;
 };

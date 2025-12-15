@@ -1,19 +1,20 @@
 import { createServer } from 'http';
 import { createApp } from './app';
 import { env, logger, prisma } from './config';
-import { MemoryRepository } from './repositories/memoryRepository';
-import { SessionRepository } from './repositories/sessionRepository';
-import { MemoryService } from './services/memoryService';
 import { getEmbeddingProvider } from './services/embeddings';
+import { CronScheduler } from './config/cron';
 
 const bootstrap = async () => {
-  const memoryRepository = new MemoryRepository();
-  const sessionRepository = new SessionRepository();
   const embeddingProvider = getEmbeddingProvider();
-  const memoryService = new MemoryService(memoryRepository, sessionRepository, embeddingProvider);
 
-  const app = createApp({ memoryService, embeddingProvider });
+  // Note: Using null for memoryService since we now use GraphRAG architecture
+  // with direct Prisma calls in controllers/services
+  const app = createApp({ memoryService: null as any, embeddingProvider });
   const server = createServer(app);
+
+  // Initialize cron jobs (consolidation, pruning, health checks)
+  CronScheduler.init();
+  logger.info('Background jobs initialized');
 
   server.listen(env.port, () => {
     logger.info(`Memory-as-a-Service API listening on port ${env.port}`, { port: env.port });
@@ -26,11 +27,15 @@ bootstrap().catch((err) => {
 });
 
 process.on('SIGINT', async () => {
+  logger.info('Shutting down gracefully...');
+  CronScheduler.stop();
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
+  logger.info('Shutting down gracefully...');
+  CronScheduler.stop();
   await prisma.$disconnect();
   process.exit(0);
 });
