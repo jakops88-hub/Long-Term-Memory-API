@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { env } from '../config';
 import { logger } from '../config/logger';
 import { prisma } from '../config/prisma';
+import { emailService } from '../services/emailService';
 
 const router = Router();
 
@@ -101,13 +102,32 @@ router.post(
               stripeCustomerId: session.customer,
             });
 
-            // TODO: Send welcome email with API key to user.email
-            // For now, log it so you can retrieve it
-            logger.warn('⚠️  NEW USER API KEY (send this to user):', {
-              email: user.email,
-              apiKey: apiKey,
-              userId: user.id,
-            });
+            // Send welcome email with API key
+            try {
+              if (env.resendApiKey) {
+                await emailService.sendWelcomeEmail({
+                  to: user.email,
+                  apiKey: apiKey,
+                  tier: 'PRO',
+                });
+                logger.info('✅ Welcome email sent successfully', { email: user.email });
+              } else {
+                logger.warn('⚠️  RESEND_API_KEY not configured - email not sent');
+                logger.warn('⚠️  NEW USER API KEY (send this to user):', {
+                  email: user.email,
+                  apiKey: apiKey,
+                  userId: user.id,
+                });
+              }
+            } catch (emailError) {
+              logger.error('Failed to send welcome email', { error: emailError, email: user.email });
+              // Log API key as fallback
+              logger.warn('⚠️  NEW USER API KEY (email failed - send manually):', {
+                email: user.email,
+                apiKey: apiKey,
+                userId: user.id,
+              });
+            }
           }
           break;
         }

@@ -14,6 +14,7 @@ import billingRoutes from './routes/billingRoutes';
 import graphRAGRoutes from './routes/graphRAGRoutes';
 import webhookRoutes from './routes/webhookRoutes';
 import publicStripeRoutes from './routes/publicStripeRoutes';
+import userRoutes from './routes/userRoutes';
 import { MemoryController } from './controllers/memoryController';
 import { SessionController } from './controllers/sessionController';
 import { HealthController } from './controllers/healthController';
@@ -84,6 +85,7 @@ export const createApp = ({ memoryService, embeddingProvider }: AppDependencies)
   apiRouter.use('/session', sessionRoutes(sessionController));
   apiRouter.use('/admin', adminRoutes(adminController));
   apiRouter.use('/stripe', stripeRoutes); // Stripe Billing Portal
+  apiRouter.use('/user', userRoutes); // User management (me, api-keys)
   apiRouter.use(healthRoutes(healthController));
 
   app.use('/api', apiRouter);

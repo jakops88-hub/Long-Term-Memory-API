@@ -52,8 +52,8 @@ router.post('/checkout', async (req: Request, res: Response, next: NextFunction)
           quantity: 1,
         },
       ],
-      success_url: `${env.corsOrigin}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${env.corsOrigin}/pricing?canceled=true`,
+      success_url: `${env.corsOrigin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${env.corsOrigin}/checkout/canceled`,
       metadata: {
         email, // Store email to create user account in webhook
         source: 'public_checkout',

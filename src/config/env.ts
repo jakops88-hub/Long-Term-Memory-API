@@ -58,6 +58,9 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
+  // Email Configuration
+  RESEND_API_KEY: z.string().optional(),
+
   // Hybrid Authentication
   RAPIDAPI_PROXY_SECRET: z.string().optional()
 });
@@ -131,6 +134,9 @@ export const env = {
   stripePublishableKey: raw.STRIPE_PUBLISHABLE_KEY,
   stripeSecretKey: raw.STRIPE_SECRET_KEY,
   stripeWebhookSecret: raw.STRIPE_WEBHOOK_SECRET,
+  
+  // Email
+  resendApiKey: raw.RESEND_API_KEY,
   
   // Authentication
   rapidApiProxySecret: raw.RAPIDAPI_PROXY_SECRET,
