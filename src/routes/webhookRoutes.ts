@@ -104,21 +104,12 @@ router.post(
 
             // Send welcome email with API key
             try {
-              if (env.resendApiKey) {
-                await emailService.sendWelcomeEmail({
-                  to: user.email,
-                  apiKey: apiKey,
-                  tier: 'PRO',
-                });
-                logger.info('✅ Welcome email sent successfully', { email: user.email });
-              } else {
-                logger.warn('⚠️  RESEND_API_KEY not configured - email not sent');
-                logger.warn('⚠️  NEW USER API KEY (send this to user):', {
-                  email: user.email,
-                  apiKey: apiKey,
-                  userId: user.id,
-                });
-              }
+              await emailService.sendWelcomeEmail({
+                to: user.email,
+                apiKey: apiKey,
+                tier: 'PRO',
+              });
+              logger.info('✅ Welcome email sent successfully', { email: user.email });
             } catch (emailError) {
               logger.error('Failed to send welcome email', { error: emailError, email: user.email });
               // Log API key as fallback

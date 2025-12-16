@@ -1,7 +1,8 @@
 import { Resend } from 'resend';
 import { env } from '../config/env';
 
-const resend = new Resend(env.resendApiKey);
+// Only initialize Resend if API key is configured
+const resend = env.resendApiKey ? new Resend(env.resendApiKey) : null;
 
 interface WelcomeEmailParams {
   to: string;
@@ -10,6 +11,13 @@ interface WelcomeEmailParams {
 }
 
 export async function sendWelcomeEmail({ to, apiKey, tier }: WelcomeEmailParams) {
+  // Check if Resend is configured
+  if (!resend) {
+    console.warn('⚠️  RESEND_API_KEY not configured - skipping email send');
+    console.warn('⚠️  User will not receive API key via email:', { email: to, apiKey });
+    return null;
+  }
+
   try {
     const { data, error } = await resend.emails.send({
       from: 'MemVault <noreply@memvault.com>', // Update with your verified domain
