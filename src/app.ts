@@ -57,7 +57,9 @@ export const createApp = ({ memoryService, embeddingProvider }: AppDependencies)
         callback(new Error('Not allowed by CORS'));
       },
       credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
+      allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-rapidapi-proxy-secret'],
+      exposedHeaders: ['Content-Type'],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
     })
   );
   
