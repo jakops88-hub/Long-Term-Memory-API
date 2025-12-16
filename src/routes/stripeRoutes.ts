@@ -1,3 +1,15 @@
+import { Router, Response, NextFunction } from 'express';
+import { prisma } from '../config';
+import { hybridAuth, AuthenticatedRequest } from '../middleware/hybridAuth';
+import Stripe from 'stripe';
+
+// Stripe API version must match webhookRoutes
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: '2025-11-17.clover',
+});
+
+const router = Router();
+
 // POST /api/stripe/create-checkout-session
 router.post('/create-checkout-session', hybridAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
@@ -33,18 +45,6 @@ router.post('/create-checkout-session', hybridAuth, async (req: AuthenticatedReq
     next(err);
   }
 });
-
-import { Router, Response, NextFunction } from 'express';
-import { prisma } from '../config';
-import { hybridAuth, AuthenticatedRequest } from '../middleware/hybridAuth';
-import Stripe from 'stripe';
-
-// Stripe API version must match webhookRoutes
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2025-11-17.clover',
-});
-
-const router = Router();
 
 // POST /api/stripe/create-portal-session
 router.post('/create-portal-session', hybridAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
