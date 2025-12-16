@@ -1,59 +1,67 @@
-# MemVault
+# MemVault Long Term Memory API
 
-> **A Memory Server for AI Agents. Runs on Postgres + pgvector.**
-> **Now supporting 100% Local/Offline execution via Ollama.**
+MemVault is a sophisticated GraphRAG (Graph Retrieval-Augmented Generation) platform designed to provide AI models with persistent, structured memory. By extracting entities and relationships from raw text, MemVault builds a queryable knowledge graph that enhances the reasoning capabilities of LLM-based applications.
 
-[![NPM Version](https://img.shields.io/npm/v/memvault-sdk-jakops88?style=flat-square)](https://www.npmjs.com/package/memvault-sdk-jakops88)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+## Core Features
 
-I got tired of setting up Pinecone/Weaviate and writing the same embedding boilerplate for every small AI agent I built.
+MemVault moves beyond simple vector search by implementing a multi-layered approach to information retrieval:
 
-I wanted something that:
-1. Just runs on **PostgreSQL** (which I already use).
-2. Handles the **chunking & embedding** automatically.
-3. Lets me **visualize** the retrieval process (because debugging vector similarity in JSON logs is difficult).
-4. Can run **offline** without API bills.
+* GraphRAG Architecture: Automatically extracts entities and their semantic relationships to build a persistent knowledge graph.
+* Hybrid Search: Merges vector-based semantic search with traditional full-text search to ensure maximum accuracy and relevance.
+* Modern Dashboard: A clean, high-performance interface built with Next.js and shadcn/ui for monitoring usage and exploring data.
+* Stripe Integration: Seamless subscription management and automated billing through the Stripe Customer Portal.
+* Cost Guard: Integrated middleware that monitors API consumption in real-time to prevent unexpected costs.
+* Async Pipeline: Offloads heavy computation and graph extraction to background workers using Redis and BullMQ to maintain high API responsiveness.
 
-So I built MemVault. It is a Node.js wrapper around `pgvector` with a generic **Hybrid Search** engine.
+## Technical Architecture
 
----
+The system is built for scalability and developer experience:
 
-## Quick Start: Choose your setup
+* Backend: Node.js and TypeScript using Express.
+* Database: PostgreSQL with pgvector for efficient high-dimensional vector storage.
+* ORM: Prisma for type-safe database interactions.
+* Infrastructure: Redis for state management and task queuing.
+* AI Services: OpenAI API for generating embeddings and performing entity extraction.
 
-You can run this entirely on your own machine (Docker), or use the managed API to skip the server maintenance.
+## Installation and Setup
 
-| Feature | Self-Hosted (Docker) | Managed API (RapidAPI) |
-| :--- | :--- | :--- |
-| **Price** | Free (Open Source) | Free Tier available |
-| **Embeddings** | **Ollama** (Local) or OpenAI | OpenAI (Managed) |
-| **Setup Time** | ~15 mins | 30 seconds |
-| **Data Privacy** | 100% on your server | Hosted by us |
-| **Maintenance** | You manage updates/uptime | We handle everything |
-| **Link** | [Scroll down to Docker](#self-hosting-docker) | [**Get API Key**](https://rapidapi.com/jakops88/api/long-term-memory-api) |
+Website (https://memvault-demo-g38n.vercel.app/)
 
----
+Follow these steps to deploy the MemVault environment:
 
-## Hybrid Search 2.0 (The Algorithm)
+1. Clone the repository:
+   git clone https://github.com/jakops88-hub/long-term-memory-api.git
+   cd long-term-memory-api
 
-Most RAG pipelines only use Vector Search. MemVault uses a **3-way weighted score** to find the most relevant context:
+2. Install dependencies:
+   npm install
 
-1.  **Semantic (Vector):** Uses Cosine Similarity via `pgvector` to understand meaning.
-2.  **Exact Match (Keyword):** Uses **BM25** (Postgres `tsvector`) to find exact product IDs or error codes that vectors miss.
-3.  **Recency (Time):** A decay function prioritizing recent memories.
+3. Configure environment variables:
+   Create a .env file in the root directory and populate it with your credentials as shown in the provided example file:
+   DATABASE_URL="postgresql://user:password@localhost:5432/memvault"
+   STRIPE_SECRET_KEY="sk_live_..."
+   STRIPE_WEBHOOK_SECRET="whsec_..."
+   OPENAI_API_KEY="sk-..."
 
-`FinalScore = (Vector * 0.5) + (Keyword * 0.3) + (Recency * 0.2)`
+4. Initialize the database:
+   npx prisma migrate dev
 
----
+## Billing and Access Control
 
-## The Visualizer
+MemVault implements a sophisticated billing logic that handles both direct Stripe customers and third-party integrations like RapidAPI:
 
-The hardest part of RAG is knowing *why* your bot retrieved specific context. MemVault comes with a dashboard to visualize the vector search in real-time.
+* Webhooks: The system listens for Stripe events to automatically manage user tiers and access levels.
+* Usage Tracking: For Pro users, API usage is metered and reported to Stripe to handle overage billing.
+* Cost Guard Service: Every request is validated against the user's current credit balance in Redis before execution.
 
-![MemVault Visualizer Dashboard](https://github.com/user-attachments/assets/e9cf2c67-83d9-43f5-9b94-568553441b69)
+## Dashboard Navigation
 
-*(Live Demo: [memvault-demo.vercel.app](https://memvault-demo-g38n.vercel.app/))*
+The dashboard serves as the central hub for managing your MemVault instance:
 
----
+* Overview: Monitor current credit consumption and active plan status.
+* Playground: Visually interact with and explore the extracted knowledge graph.
+* API Management: Generate, rotate, and manage secure API keys for your applications.
+* Billing: Direct access to the Stripe portal for plan upgrades and invoice management.
 
 ## Installation (NPM SDK)
 
@@ -184,3 +192,6 @@ jobs:
 See `.github/actions/memvault-sync/action.yml` for all options.
 
 ---
+Copyright Jakob Sandstrom. Licensed under the MIT License.
+Copyright Jakob Sandstrom. Licensed under the MIT License.
+>>>>>>> d4736e894641d4fa61e6e9bff6ca12d27377ddfd
