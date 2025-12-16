@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { prisma } from '../config/prisma';
 import { logger } from '../config/logger';
-import { AuthenticatedRequest } from '../middleware/hybridAuth';
+import { AuthenticatedRequest, hybridAuth } from '../middleware/hybridAuth';
 
 const router = Router();
 
@@ -10,7 +10,7 @@ const router = Router();
  * Returns current user information based on Bearer token
  * Used for login validation and dashboard data
  */
-router.get('/me', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/me', hybridAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     // API key is already validated by hybridAuth middleware
     // and stored in req.userContext
@@ -58,7 +58,7 @@ router.get('/me', async (req: AuthenticatedRequest, res: Response) => {
  * GET /api/user/api-keys
  * Returns all API keys for the current user
  */
-router.get('/api-keys', async (req: AuthenticatedRequest, res: Response) => {
+router.get('/api-keys', hybridAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.userContext?.userId;
 
@@ -107,7 +107,7 @@ router.get('/api-keys', async (req: AuthenticatedRequest, res: Response) => {
  * Deletes an API key (currently not implemented as users have only one key)
  * Returns 400 error preventing deletion of the only key
  */
-router.delete('/api-keys/:id', async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/api-keys/:id', hybridAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.userContext?.userId;
     const keyId = req.params.id;
