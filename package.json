@@ -11,7 +11,8 @@
     "start:worker": "node dist/worker.js",
     "test": "jest --runInBand",
     "prisma:generate": "prisma generate",
-    "migrate:deploy": "prisma migrate deploy"
+    "migrate:deploy": "prisma migrate deploy",
+    "build-action": "ncc build .github/actions/memvault-sync/index.ts -o .github/actions/memvault-sync/dist"
   },
   "keywords": [
     "memory",
@@ -39,6 +40,9 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@actions/core": "^2.0.1",
+    "@actions/github": "^6.0.1",
+    "@actions/glob": "^0.5.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/helmet": "^4.0.0",
@@ -46,7 +50,9 @@
     "@types/node": "^20.11.30",
     "@types/node-cron": "^3.0.11",
     "@types/supertest": "^2.0.16",
+    "@vercel/ncc": "^0.38.4",
     "jest": "^29.7.0",
+    "node-fetch": "^3.3.2",
     "prisma": "^5.16.1",
     "supertest": "^6.3.4",
     "ts-jest": "^29.1.1",

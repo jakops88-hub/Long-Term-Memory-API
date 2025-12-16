@@ -1,0 +1,19 @@
+name: 'MemVault Sync'
+description: 'Automatically index repository knowledge into your MemVault GraphRAG vault'
+branding:
+  icon: 'brain'
+  color: 'blue'
+inputs:
+  memvault_api_key:
+    description: 'Secure API Key for authentication.'
+    required: true
+  vault_id:
+    description: 'The specific vault to sync to.'
+    required: false
+  file_paths:
+    description: 'Files to be processed.'
+    required: false
+    default: '**/*.md'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

@@ -18,6 +18,7 @@ import { SessionController } from './controllers/sessionController';
 import { HealthController } from './controllers/healthController';
 import { AdminController } from './controllers/adminController';
 import { EmbeddingProvider } from './services/embeddings/EmbeddingProvider';
+import stripeRoutes from './routes/stripeRoutes';
 
 export interface AppDependencies {
   memoryService: any; // Legacy - not used in GraphRAG architecture
@@ -78,6 +79,7 @@ export const createApp = ({ memoryService, embeddingProvider }: AppDependencies)
   apiRouter.use('/graphrag', graphRAGRoutes); // GraphRAG recursive retrieval
   apiRouter.use('/session', sessionRoutes(sessionController));
   apiRouter.use('/admin', adminRoutes(adminController));
+  apiRouter.use('/stripe', stripeRoutes); // Stripe Billing Portal
   apiRouter.use(healthRoutes(healthController));
 
   app.use('/api', apiRouter);

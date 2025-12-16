@@ -145,3 +145,42 @@ Specifically looking for help with:
 ## License
 
 MIT
+
+---
+
+## GitHub Action: MemVault Sync
+
+MemVault provides a GitHub Action for teams who want to automatically index repository knowledge (e.g., Markdown docs) into their MemVault GraphRAG vault.
+
+### Usage
+
+Create a workflow file (e.g. `.github/workflows/memvault.yml`):
+
+```yaml
+name: MemVault Sync
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync-memvault:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sync to MemVault
+        uses: ./github/actions/memvault-sync
+        with:
+          memvault_api_key: ${{ secrets.MEMVAULT_API_KEY }}
+          vault_id: "your-vault-id" # optional
+          file_paths: "docs/**/*.md" # optional, default: '**/*.md'
+```
+
+### Security & Privacy
+- Only files matching the `file_paths` pattern are read and sent to MemVault.
+- The API key is handled as a GitHub Secret and is never printed in logs.
+- All API communication is encrypted via HTTPS.
+- No files or secrets are stored outside the GitHub Action runtime.
+
+See `.github/actions/memvault-sync/action.yml` for all options.
+
+---
