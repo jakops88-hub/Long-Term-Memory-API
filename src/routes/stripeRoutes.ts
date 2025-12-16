@@ -1,3 +1,38 @@
+// POST /api/stripe/create-checkout-session
+router.post('/create-checkout-session', hybridAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userContext?.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { priceId } = req.body;
+    if (!priceId) return res.status(400).json({ error: 'Price ID is required' });
+
+    // Hämta user email från databasen
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+
+    // Skapa Stripe Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      customer_email: user?.email || undefined,
+      line_items: [{
+        price: priceId,
+        quantity: 1,
+      }],
+      success_url: `${process.env.CORS_ORIGIN}/dashboard/billing?success=true`,
+      cancel_url: `${process.env.CORS_ORIGIN}/dashboard/billing?canceled=true`,
+      metadata: {
+        userId, // VIKTIGT: Används i webhook för att identifiera användaren
+      },
+    });
+
+    return res.json({ url: session.url });
+  } catch (err) {
+    next(err);
+  }
+});
 
 import { Router, Response, NextFunction } from 'express';
 import { prisma } from '../config';
