@@ -1,6 +1,7 @@
-import { Router, Request, Response, NextFunction } from 'express';
+
+import { Router, Response, NextFunction } from 'express';
 import { prisma } from '../config';
-import { hybridAuth } from '../middleware/hybridAuth';
+import { hybridAuth, AuthenticatedRequest } from '../middleware/hybridAuth';
 import Stripe from 'stripe';
 
 // Stripe API version must match webhookRoutes
@@ -11,9 +12,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 const router = Router();
 
 // POST /api/stripe/create-portal-session
-router.post('/create-portal-session', hybridAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/create-portal-session', hybridAuth, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.userContext?.userId;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     // Hämta stripeCustomerId från userBilling
