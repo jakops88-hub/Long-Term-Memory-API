@@ -13,6 +13,7 @@ import asyncMemoryRoutes from './routes/asyncMemoryRoutes';
 import billingRoutes from './routes/billingRoutes';
 import graphRAGRoutes from './routes/graphRAGRoutes';
 import webhookRoutes from './routes/webhookRoutes';
+import publicStripeRoutes from './routes/publicStripeRoutes';
 import { MemoryController } from './controllers/memoryController';
 import { SessionController } from './controllers/sessionController';
 import { HealthController } from './controllers/healthController';
@@ -71,6 +72,9 @@ export const createApp = ({ memoryService, embeddingProvider }: AppDependencies)
   app.get('/health', healthController.health);
 
   const apiRouter = express.Router();
+
+  // Public routes (no authentication required)
+  apiRouter.use('/public/stripe', publicStripeRoutes); // Public checkout
 
   // Montera routes
   apiRouter.use('/memory', memoryRoutes(memoryController));

@@ -52,11 +52,13 @@ router.post(
         case 'checkout.session.completed': {
           const session = event.data.object as Stripe.Checkout.Session;
           const userId = session.metadata?.userId;
+          const email = session.metadata?.email || session.customer_email;
+          const source = session.metadata?.source;
 
-          logger.info('Checkout session completed', { sessionId: session.id, userId });
+          logger.info('Checkout session completed', { sessionId: session.id, userId, email, source });
 
+          // Case 1: Existing user upgrading (has userId in metadata)
           if (userId) {
-            // Upgrade user to PRO tier
             await prisma.userBilling.update({
               where: { userId },
               data: {
@@ -66,6 +68,46 @@ router.post(
             });
 
             logger.info('User upgraded to PRO tier', { userId });
+          }
+          // Case 2: New user from public checkout (no userId, has email)
+          else if (email && source === 'public_checkout') {
+            // Generate API key
+            const apiKey = `sk_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}${Date.now().toString(36)}`;
+            
+            // Generate unique userId
+            const newUserId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+            // Create new user with PRO tier
+            const user = await prisma.user.create({
+              data: {
+                id: newUserId,
+                email: email,
+                apiKey: apiKey,
+                source: 'DIRECT',
+                billing: {
+                  create: {
+                    tier: 'PRO',
+                    creditsBalance: 0,
+                    stripeCustomerId: session.customer as string,
+                  },
+                },
+              },
+            });
+
+            logger.info('New user created from public checkout', {
+              userId: user.id,
+              email: user.email,
+              apiKey: apiKey,
+              stripeCustomerId: session.customer,
+            });
+
+            // TODO: Send welcome email with API key to user.email
+            // For now, log it so you can retrieve it
+            logger.warn('⚠️  NEW USER API KEY (send this to user):', {
+              email: user.email,
+              apiKey: apiKey,
+              userId: user.id,
+            });
           }
           break;
         }

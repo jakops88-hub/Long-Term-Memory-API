@@ -17,6 +17,8 @@ datasource db {
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
+  apiKey    String?  @unique // API key for authentication
+  source    String   @default("DIRECT") // DIRECT or RAPIDAPI
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -27,6 +29,7 @@ model User {
   relationships Relationship[]
 
   @@index([email])
+  @@index([apiKey])
 }
 
 model UserBilling {

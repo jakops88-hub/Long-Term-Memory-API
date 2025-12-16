@@ -208,45 +208,26 @@ async function getOrCreateRapidApiUser(rapidApiUserId: string) {
  * @returns User if valid, null otherwise
  */
 async function validateDirectUserToken(token: string) {
-  // TODO: Implement proper JWT validation
-  // For now, treat token as API key stored in database
-  
-  // Simple validation: token should be at least 32 chars
-  if (token.length < 32) {
+  // Validate token format: should start with 'sk_' and be at least 32 chars
+  if (!token.startsWith('sk_') || token.length < 32) {
     return null;
   }
 
-  // TODO: Query user by API key or decode JWT
-  // Placeholder: Accept any token starting with 'sk_'
-  if (!token.startsWith('sk_')) {
-    return null;
-  }
-
-  // For testing, return a mock user
-  // In production, validate against database or JWT
-  const mockUserId = 'direct-user-123';
-  
-  let user = await prisma.user.findUnique({
-    where: { id: mockUserId }
-  });
-
-  if (!user) {
-    // Create test user
-    user = await prisma.user.create({
-      data: {
-        id: mockUserId,
-        email: 'test@memvault.com',
-        billing: {
-          create: {
-            tier: 'PRO',
-            creditsBalance: 10000 // $100.00
-          }
-        }
+  try {
+    // Find user by API key
+    const user = await prisma.user.findUnique({
+      where: { apiKey: token },
+      select: {
+        id: true,
+        email: true,
       }
     });
-  }
 
-  return user;
+    return user;
+  } catch (error) {
+    logger.error('Error validating API key', { error });
+    return null;
+  }
 }
 
 /**
