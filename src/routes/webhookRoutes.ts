@@ -9,7 +9,7 @@ const router = Router();
 
 // Initialize Stripe
 const stripe = new Stripe(env.stripeSecretKey || '', {
-  apiVersion: '2025-11-17.clover',
+  apiVersion: '2025-12-15.clover',
   typescript: true,
 });
 

@@ -5,7 +5,7 @@ import Stripe from 'stripe';
 
 // Stripe API version must match webhookRoutes
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2025-11-17.clover',
+  apiVersion: '2025-12-15.clover',
 });
 
 const router = Router();
