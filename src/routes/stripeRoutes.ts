@@ -33,6 +33,12 @@ router.post('/create-checkout-session', hybridAuth, async (req: AuthenticatedReq
         price: priceId,
         quantity: 1,
       }],
+      // HARDCODED: 7-day free trial for all subscription plans
+      // This cannot be configured in Stripe Dashboard for this price.
+      // Trial starts immediately, user is charged $0 for first 7 days.
+      subscription_data: {
+        trial_period_days: 7,
+      },
       success_url: `${process.env.CORS_ORIGIN}/dashboard/billing?success=true`,
       cancel_url: `${process.env.CORS_ORIGIN}/dashboard/billing?canceled=true`,
       metadata: {

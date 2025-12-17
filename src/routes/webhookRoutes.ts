@@ -125,18 +125,79 @@ router.post(
 
         case 'invoice.payment_succeeded': {
           const invoice = event.data.object as Stripe.Invoice;
+          const customerId = invoice.customer as string;
+          const amountPaid = invoice.amount_paid || 0; // in cents
           const userId = invoice.metadata?.userId;
 
-          logger.info('Invoice payment succeeded', { invoiceId: invoice.id, userId });
+          logger.info('Invoice payment succeeded', { 
+            invoiceId: invoice.id, 
+            userId, 
+            customerId,
+            amountPaid,
+            isTrial: amountPaid === 0 
+          });
 
-          if (userId) {
-            // Clear negative balance (overage paid)
-            await prisma.userBilling.update({
+          // CRITICAL: Do NOT skip $0.00 invoices!
+          // When a user starts a trial, Stripe creates a $0 invoice.
+          // We MUST provision their credits immediately, otherwise they log in to an empty account.
+          
+          // Find user by stripeCustomerId (most reliable) or userId from metadata
+          let userBilling = await prisma.userBilling.findFirst({
+            where: { stripeCustomerId: customerId },
+          });
+
+          if (!userBilling && userId) {
+            // Fallback: Find by userId from metadata (for new users during checkout)
+            userBilling = await prisma.userBilling.findUnique({
               where: { userId },
-              data: { creditsBalance: 0 },
             });
+          }
 
-            logger.info('User balance cleared after payment', { userId });
+          if (userBilling) {
+            // Determine credit amount based on tier
+            const tier = userBilling.tier;
+            let creditsToAdd = 0;
+
+            if (tier === 'HOBBY') {
+              creditsToAdd = 2900; // $29.00 in cents = 100k tokens
+            } else if (tier === 'PRO') {
+              creditsToAdd = 9900; // $99.00 in cents = 1M tokens
+            }
+
+            // For trial invoices ($0): Provision full monthly credits
+            // For paid invoices: Clear negative balance (overage paid) + add monthly credits
+            if (amountPaid === 0) {
+              // TRIAL START: Add full monthly credits
+              await prisma.userBilling.update({
+                where: { userId: userBilling.userId },
+                data: { creditsBalance: creditsToAdd },
+              });
+
+              logger.info('Trial started - credits provisioned', { 
+                userId: userBilling.userId, 
+                tier,
+                creditsAdded: creditsToAdd 
+              });
+            } else {
+              // RECURRING PAYMENT: Clear negative balance and replenish
+              await prisma.userBilling.update({
+                where: { userId: userBilling.userId },
+                data: { creditsBalance: creditsToAdd },
+              });
+
+              logger.info('Recurring payment - balance replenished', { 
+                userId: userBilling.userId,
+                tier,
+                amountPaid,
+                newBalance: creditsToAdd 
+              });
+            }
+          } else {
+            logger.warn('Invoice payment succeeded but no user billing found', { 
+              customerId, 
+              userId, 
+              invoiceId: invoice.id 
+            });
           }
           break;
         }
