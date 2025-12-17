@@ -2,13 +2,13 @@
 
 Official TypeScript/JavaScript SDK for [MemVault](https://memvault.io) - Long-Term Memory API with GraphRAG.
 
-## 🚀 Installation
+## Installation
 
 ```bash
 npm install @memvault/client
 ```
 
-## 📖 Quick Start
+## Quick Start
 
 ```typescript
 import { MemVault } from '@memvault/client';
@@ -30,7 +30,7 @@ console.log(answer.answer);
 console.log("Sources:", answer.sources);
 ```
 
-## 🔑 Authentication
+## Authentication
 
 Get your API key from the [MemVault Dashboard](https://memvault.io/dashboard) after completing checkout.
 
@@ -48,7 +48,7 @@ const memvault = new MemVault(apiKey, {
 });
 ```
 
-## 📚 API Reference
+## API Reference
 
 ### `addMemory(content, metadata?)`
 
@@ -165,7 +165,7 @@ await memvault.deleteApiKey('key_abc123');
 
 ---
 
-## 🎯 Use Cases
+## Use Cases
 
 ### Personal Knowledge Base
 
@@ -221,7 +221,7 @@ const summary = await memvault.ask("What are the key innovations in AI retrieval
 
 ---
 
-## 🛡️ Error Handling
+## Error Handling
 
 The SDK throws specific error types for different failure scenarios:
 
@@ -261,7 +261,7 @@ try {
 
 ---
 
-## 🔄 Automatic Retry
+## Automatic Retry
 
 The SDK automatically retries failed requests with exponential backoff:
 
@@ -278,7 +278,7 @@ const memvault = new MemVault(apiKey, {
 
 ---
 
-## 🔧 Advanced Usage
+## Advanced Usage
 
 ### Custom Base URL
 
@@ -323,7 +323,7 @@ const entity: Entity = answer.entities[0];
 
 ---
 
-## 📊 Monitoring & Debugging
+## Monitoring & Debugging
 
 ### Check Credits
 
@@ -345,15 +345,15 @@ console.log(`Job queued: ${result.jobId}`);
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Issues and PRs welcome at [github.com/memvault/memvault-sdk](https://github.com/memvault/memvault-sdk)
 
-## 📄 License
+## License
 
 MIT
 
-## 🔗 Links
+## Links
 
 - [Dashboard](https://memvault.io/dashboard)
 - [API Documentation](https://docs.memvault.io)
