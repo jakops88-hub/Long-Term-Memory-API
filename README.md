@@ -1,197 +1,158 @@
-# MemVault Long Term Memory API
+# MemVault: The Intelligent Memory Layer for AI Agents
 
-MemVault is a sophisticated GraphRAG (Graph Retrieval-Augmented Generation) platform designed to provide AI models with persistent, structured memory. By extracting entities and relationships from raw text, MemVault builds a queryable knowledge graph that enhances the reasoning capabilities of LLM-based applications.
+![Build Status](https://img.shields.io/github/actions/workflow/status/jakops88-hub/long-term-memory-api/main.yml?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)
+![NPM Version](https://img.shields.io/npm/v/memvault-sdk-jakops88?style=flat-square&color=cb3837)
+![Marketplace](https://img.shields.io/badge/GitHub_Marketplace-Available-purple?style=flat-square)
 
-## Core Features
+> **Give your LLMs long-term memory, semantic understanding, and evolving context—with one line of code.**
 
-MemVault moves beyond simple vector search by implementing a multi-layered approach to information retrieval:
+MemVault is a production-grade **GraphRAG (Graph Retrieval-Augmented Generation)** platform. Unlike simple vector databases that only find "similar words", MemVault builds a dynamic knowledge graph of entities and relationships, allowing your AI to understand *context*, not just keywords.
 
-* GraphRAG Architecture: Automatically extracts entities and their semantic relationships to build a persistent knowledge graph.
-* Hybrid Search: Merges vector-based semantic search with traditional full-text search to ensure maximum accuracy and relevance.
-* Modern Dashboard: A clean, high-performance interface built with Next.js and shadcn/ui for monitoring usage and exploring data.
-* Stripe Integration: Seamless subscription management and automated billing through the Stripe Customer Portal.
-* Cost Guard: Integrated middleware that monitors API consumption in real-time to prevent unexpected costs.
-* Async Pipeline: Offloads heavy computation and graph extraction to background workers using Redis and BullMQ to maintain high API responsiveness.
+[**Start 7-Day Free Trial**](https://memvault.com/dashboard) | [**Read Documentation**](https://memvault.com/docs) | [**NPM SDK**](https://www.npmjs.com/package/memvault-sdk-jakops88)
 
-## Technical Architecture
+---
 
-The system is built for scalability and developer experience:
+## Why MemVault?
 
-* Backend: Node.js and TypeScript using Express.
-* Database: PostgreSQL with pgvector for efficient high-dimensional vector storage.
-* ORM: Prisma for type-safe database interactions.
-* Infrastructure: Redis for state management and task queuing.
-* AI Services: OpenAI API for generating embeddings and performing entity extraction.
+Building persistent memory is hard. Managing vector databases, embedding pipelines, graph databases, and context windows is even harder. MemVault solves this with a managed API that acts as the hippocampus for your AI agents.
 
-## Installation and Setup
+### The "Sleep Cycle" Engine (Unique Feature)
+Just like the biological brain, MemVault consolidates information asynchronously.
 
-Website (https://memvault-demo-g38n.vercel.app/)
+* **Ingest Now, Process Later:** We accept data instantly, but deep processing happens in the background.
+* **Auto-Consolidation:** Every 6 hours, our **Sleep Cycle Engine** wakes up to merge duplicate entities, prune noise, and strengthen semantic relationships in the graph.
+* **Result:** Your AI gets smarter over time without you writing a single line of maintenance code.
 
-Follow these steps to deploy the MemVault environment:
+### Production-Grade Features
+* **Hybrid Search:** Combines `pgvector` semantic search with keyword extraction for maximum retrieval accuracy.
+* **Cost Guard:** Built-in financial firewall. We monitor token usage in real-time to prevent runaway API costs from infinite loops or spikes.
+* **GraphRAG:** Automatically extracts entities (People, Places, Concepts) and maps how they relate to each other.
 
-1. Clone the repository:
-   git clone https://github.com/jakops88-hub/long-term-memory-api.git
-   cd long-term-memory-api
+---
 
-2. Install dependencies:
-   npm install
+## Quickstart
 
-3. Configure environment variables:
-   Create a .env file in the root directory and populate it with your credentials as shown in the provided example file:
-   DATABASE_URL="postgresql://user:password@localhost:5432/memvault"
-   STRIPE_SECRET_KEY="sk_live_..."
-   STRIPE_WEBHOOK_SECRET="whsec_..."
-   OPENAI_API_KEY="sk-..."
-
-4. Initialize the database:
-   npx prisma migrate dev
-
-## Billing and Access Control
-
-MemVault implements a sophisticated billing logic that handles both direct Stripe customers and third-party integrations like RapidAPI:
-
-* Webhooks: The system listens for Stripe events to automatically manage user tiers and access levels.
-* Usage Tracking: For Pro users, API usage is metered and reported to Stripe to handle overage billing.
-* Cost Guard Service: Every request is validated against the user's current credit balance in Redis before execution.
-
-## Dashboard Navigation
-
-The dashboard serves as the central hub for managing your MemVault instance:
-
-* Overview: Monitor current credit consumption and active plan status.
-* Playground: Visually interact with and explore the extracted knowledge graph.
-* API Management: Generate, rotate, and manage secure API keys for your applications.
-* Billing: Direct access to the Stripe portal for plan upgrades and invoice management.
-
-## Installation (NPM SDK)
-
-Whether you self-host or use the Cloud API, the SDK works the same way.
+### 1. Install the SDK
+Stop messing with raw HTTP requests. Our TypeScript SDK gives you full type safety.
 
 ```bash
 npm install memvault-sdk-jakops88
 ```
 
+### 2. Initialize & Use
+
 ```typescript
 import { MemVault } from 'memvault-sdk-jakops88';
 
-// Point to local instance or RapidAPI
+// Initialize with your 'sk_...' key from the dashboard
 const memory = new MemVault({
-  apiKey: "YOUR_KEY", 
-  baseUrl: "http://localhost:3000" 
+  apiKey: process.env.MEMVAULT_API_KEY
 });
 
-// 1. Store a memory (Auto-embedding via Ollama/OpenAI)
-await memory.store({
-  sessionId: "user-123",
-  text: "The user prefers strictly typed languages like TypeScript.",
-  importanceHint: "high"
+// 1. Store a memory (Text -> Vector + Graph Node)
+await memory.add({
+  content: "The user, Jakob, is a Senior Developer who prefers TypeScript over Python.",
+  tags: ["user-profile", "preferences"]
 });
 
-// 2. Retrieve relevant context (Hybrid Search)
-const result = await memory.retrieve({
-  sessionId: "user-123",
-  query: "What tech stack should I recommend?",
-  limit: 3
+// 2. Ask questions (Retrieves context via GraphRAG)
+const context = await memory.search("What is Jakob's preferred language?", {
+  limit: 1,
+  strategy: 'hybrid' // Uses both Vector and Graph traversal
 });
+
+console.log(context);
+// Output: "Jakob prefers TypeScript (Confidence: 98%)"
 ```
 
 ---
 
-## Self-Hosting (Docker)
+## GitHub Actions Integration
 
-You can run the entire stack (API + DB + Embeddings) offline.
-
-### Prerequisites
-* Docker & Docker Compose
-* Ollama (optional, for local embeddings)
-
-### 1. Clone the repository
-```bash
-git clone https://github.com/jakops88-hub/Long-Term-Memory-API.git
-cd Long-Term-Memory-API
-```
-
-### 2. Configure Environment
-```bash
-cp .env.example .env
-```
-
-To use local embeddings (free/offline), set the provider to `ollama` in your `.env` file:
-
-```bash
-EMBEDDING_PROVIDER=ollama
-OLLAMA_BASE_URL=http://host.docker.internal:11434/api
-OLLAMA_MODEL=nomic-embed-text
-```
-
-Ensure you have pulled the model in Ollama: `ollama pull nomic-embed-text`
-
-### 3. Start the stack
-```bash
-docker-compose up -d
-```
-
-The API is now available at `http://localhost:3000`.
-
----
-
-## Architecture
-
-* **Runtime:** Node.js & TypeScript
-* **Database:** PostgreSQL + `pgvector`
-* **Search:** Hybrid (Vector + BM25 Keyword Search)
-* **ORM:** Prisma
-* **Visualization:** React + `react-force-graph-2d`
-
-## Contributing
-
-This is a side project that grew into a tool. Issues and PRs are welcome.
-Specifically looking for help with:
-* **Metadata Filters:** Adding structured filtering alongside vectors.
-* **Security:** Implementing session-level encryption.
-
-## License
-
-MIT
-
----
-
-## GitHub Action: MemVault Sync
-
-MemVault provides a GitHub Action for teams who want to automatically index repository knowledge (e.g., Markdown docs) into their MemVault GraphRAG vault.
-
-### Usage
-
-Create a workflow file (e.g. `.github/workflows/memvault.yml`):
+Keep your AI updated with your codebase automatically. Use our official Action to sync documentation or code files directly to your MemVault knowledge graph on every push.
 
 ```yaml
-name: MemVault Sync
+# .github/workflows/memvault-sync.yml
+name: Sync Docs to Brain
 on:
   push:
-    branches: [main]
+    paths: ['docs/**']
 
 jobs:
-  sync-memvault:
+  sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Sync to MemVault
-        uses: ./github/actions/memvault-sync
+      - name: MemVault Sync
+        uses: jakops88-hub/long-term-memory-api/.github/actions/memvault-sync@v1
         with:
           memvault_api_key: ${{ secrets.MEMVAULT_API_KEY }}
-          vault_id: "your-vault-id" # optional
-          file_paths: "docs/**/*.md" # optional, default: '**/*.md'
+          file_paths: "docs/**/*.md"
 ```
 
-### Security & Privacy
-- Only files matching the `file_paths` pattern are read and sent to MemVault.
-- The API key is handled as a GitHub Secret and is never printed in logs.
-- All API communication is encrypted via HTTPS.
-- No files or secrets are stored outside the GitHub Action runtime.
+---
 
-See `.github/actions/memvault-sync/action.yml` for all options.
+## Architecture & Security
+
+MemVault is built for scale and security, hosted on high-performance infrastructure.
+
+* **API Layer:** Node.js/Express with strict rate limiting and validation (Zod).
+* **Async Workers:** Heavy lifting (Graph extraction, Sleep Cycles) is offloaded to Redis/BullMQ queues to ensure sub-millisecond API response times.
+* **Storage:** PostgreSQL with `pgvector` for high-dimensional vector storage.
+* **Security:** All keys are encrypted. Usage is sandboxed per user via **HybridAuth**.
 
 ---
-Copyright Jakob Sandstrom. Licensed under the MIT License.
-Copyright Jakob Sandstrom. Licensed under the MIT License.
->>>>>>> d4736e894641d4fa61e6e9bff6ca12d27377ddfd
+
+## Pricing
+
+We offer a straightforward pricing model designed for developers.
+
+| Plan | Price | Features |
+|------|-------|----------|
+| **Trial** | **Free (7 Days)** | Full access to Hobby tier to test the API. |
+| **Hobby** | **$29/mo** | 100k tokens, GraphRAG, Dashboard access. Hard limits (no overage). |
+| **Pro** | **$99/mo** | 1M tokens, **Sleep Cycles (Consolidation)**, Priority Support. |
+
+[**View Full Pricing & Upgrade**](https://memvault.com/dashboard/billing)
+
+---
+
+## Self-Hosting (Open Core)
+
+MemVault is Open Core. You can run the stack locally for development or compliant internal usage. Note that *Sleep Cycles* and *Cost Guard* are optimized for the managed cloud environment.
+
+<details>
+<summary><strong>Click to view Docker instructions</strong></summary>
+
+### Prerequisites
+* Docker & Docker Compose
+* OpenAI API Key (or local Ollama instance)
+
+### Setup
+1. Clone the repo:
+   ```bash
+   git clone [https://github.com/jakops88-hub/long-term-memory-api.git](https://github.com/jakops88-hub/long-term-memory-api.git)
+   ```
+2. Configure `.env`:
+   ```bash
+   cp .env.example .env
+   # Add your DATABASE_URL and OPENAI_API_KEY
+   ```
+3. Run with Docker Compose:
+   ```bash
+   docker-compose up -d
+   ```
+   The API is now available at `http://localhost:3000`.
+
+</details>
+
+---
+
+## Contributing
+
+We welcome issues and pull requests! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to set up the local development environment.
+
+## License
+
+MIT © [Jakob Sandström](https://github.com/jakops88-hub)
