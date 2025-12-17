@@ -57,8 +57,11 @@ export class MemVault {
       throw new ValidationError('Memory content cannot be empty');
     }
 
+    const userId = await this.getUserId();
+
     return this.request<AddMemoryResponse>('POST', '/api/memory/add', {
-      content,
+      userId,
+      text: content,
       metadata,
     });
   }
@@ -123,7 +126,8 @@ export class MemVault {
    * @returns Array of API keys
    */
   async listApiKeys(): Promise<ApiKey[]> {
-    return this.request<ApiKey[]>('GET', '/api/user/api-keys');
+    const response = await this.request<{ apiKeys: ApiKey[] }>('GET', '/api/user/api-keys');
+    return response.apiKeys;
   }
 
   /**

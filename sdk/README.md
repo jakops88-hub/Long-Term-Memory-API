@@ -126,8 +126,8 @@ Get current user information and billing status.
 const user = await memvault.getUser();
 
 console.log(user.id);
-console.log(user.billing.tier);           // "PREMIUM"
-console.log(user.billing.creditsBalance); // 1000.50
+console.log(user.tier);           // "PRO"
+console.log(user.creditsBalance); // 1000.50
 ```
 
 **Returns:** `Promise<User>`
@@ -329,8 +329,8 @@ const entity: Entity = answer.entities[0];
 
 ```typescript
 const user = await memvault.getUser();
-console.log(`Credits remaining: ${user.billing.creditsBalance}`);
-console.log(`This month usage: ${user.billing.monthlyUsage}`);
+console.log(`Credits remaining: ${user.creditsBalance}`);
+console.log(`Tier: ${user.tier}`);
 ```
 
 ### Track Job Status

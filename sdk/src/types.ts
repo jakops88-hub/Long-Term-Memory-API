@@ -53,11 +53,9 @@ export interface User {
   id: string;
   email: string | null;
   createdAt: string;
-  billing: {
-    tier: string;
-    creditsBalance: number;
-    monthlyUsage: number;
-  };
+  tier: string;
+  creditsBalance: number;
+  stripeCustomerId?: string | null;
 }
 
 export interface ApiKey {
@@ -69,15 +67,27 @@ export interface ApiKey {
 }
 
 export interface AddMemoryResponse {
-  success: boolean;
+  message: string;
   jobId: string;
-  status: string;
+  userId: string;
+  source: string;
+  graphExtractionEnabled: boolean;
 }
 
 export interface RetrieveResponse {
-  results: Memory[];
+  query: string;
+  userId: string;
+  stats: {
+    memoriesFound: number;
+    entitiesFound: number;
+    graphNodesTraversed: number;
+    totalTokens: number;
+    durationMs: number;
+  };
+  memories: Memory[];
   entities: Entity[];
-  relationships: Relationship[];
+  graphNodes: any[];
+  context: string;
 }
 
 export interface AskResponse {

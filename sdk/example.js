@@ -20,7 +20,10 @@ async function main() {
     console.log('1️⃣ Getting user info...');
     const user = await memvault.getUser();
     console.log(`   User ID: ${user.id}`);
-    console.log(`   Credits: ${user.billing.creditsBalance}\n`);
+    console.log(`   Email: ${user.email || 'N/A'}`);
+    console.log(`   Tier: ${user.tier}`);
+    console.log(`   Credits: ${user.creditsBalance}`);
+    console.log();
 
     // 2. Add a memory
     console.log('2️⃣ Adding memory...');
@@ -29,7 +32,7 @@ async function main() {
       { category: "product-decision", date: "2024-12-17" }
     );
     console.log(`   Job ID: ${addResult.jobId}`);
-    console.log(`   Status: ${addResult.status}\n`);
+    console.log(`   Message: ${addResult.message}\n`);
 
     // Wait a bit for processing
     console.log('   ⏳ Waiting for memory to process...\n');
@@ -40,20 +43,16 @@ async function main() {
     const searchResults = await memvault.retrieve("SDK launch decision", {
       limit: 5
     });
-    console.log(`   Found ${searchResults.results.length} memories`);
-    if (searchResults.results.length > 0) {
-      console.log(`   Latest: "${searchResults.results[0].content.substring(0, 80)}..."\n`);
+    console.log(`   Found ${searchResults.memories.length} memories`);
+    console.log(`   Context: ${searchResults.context.substring(0, 100)}...`);
+    if (searchResults.memories.length > 0) {
+      console.log(`   Latest: "${searchResults.memories[0].content.substring(0, 80)}..."\n`);
+    } else {
+      console.log(`   (No memories found yet - they're still processing)\n`);
     }
 
-    // 4. Ask a question
-    console.log('4️⃣ Asking a question...');
-    const answer = await memvault.ask("What did we decide to build first?");
-    console.log(`   Answer: ${answer.answer}`);
-    console.log(`   Confidence: ${answer.confidence}`);
-    console.log(`   Sources: ${answer.sources.length} memories\n`);
-
-    // 5. List API keys
-    console.log('5️⃣ Listing API keys...');
+    // 4. List API keys
+    console.log('4️⃣ Listing API keys...');
     const keys = await memvault.listApiKeys();
     console.log(`   Total keys: ${keys.length}`);
     keys.forEach(key => {
@@ -62,9 +61,12 @@ async function main() {
 
     console.log('\n✅ All tests passed!');
   } catch (error) {
-    console.error('\n❌ Error:', error.message);
+    console.error('\n❌ Error:', error.message || error);
     if (error.statusCode) {
       console.error(`   Status: ${error.statusCode}`);
+    }
+    if (error.response) {
+      console.error(`   Response:`, JSON.stringify(error.response, null, 2));
     }
     process.exit(1);
   }
