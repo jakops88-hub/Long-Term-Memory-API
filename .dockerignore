@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# Node
+node_modules
+npm-debug.log
+.npm
+
+# Build
+dist
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation
+*.md
+!README.md
+
+# Scripts (test files)
+scripts/test_*.ts
+sdk/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Tests
+tests/
+*.test.ts
+*.test.js
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
