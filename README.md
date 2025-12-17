@@ -9,7 +9,7 @@
 
 MemVault is a production-grade **GraphRAG (Graph Retrieval-Augmented Generation)** platform. Unlike simple vector databases that only find "similar words", MemVault builds a dynamic knowledge graph of entities and relationships, allowing your AI to understand *context*, not just keywords.
 
-[**Start 7-Day Free Trial**](https://memvault.com/dashboard) | [**Read Documentation**](https://memvault.com/docs) | [**NPM SDK**](https://www.npmjs.com/package/memvault-sdk-jakops88)
+[**Start 7-Day Free Trial**](https://memvault-demo-g38n.vercel.app/) | [**Read Documentation**](https://memvault-demo-g38n.vercel.app/docs) | [**NPM SDK**](https://www.npmjs.com/package/@memvault/client)
 
 ---
 
@@ -114,7 +114,7 @@ We offer a straightforward pricing model designed for developers.
 | **Hobby** | **$29/mo** | 100k tokens, GraphRAG, Dashboard access. Hard limits (no overage). |
 | **Pro** | **$99/mo** | 1M tokens, **Sleep Cycles (Consolidation)**, Priority Support. |
 
-[**View Full Pricing & Upgrade**](https://memvault.com/dashboard/billing)
+[**View Full Pricing & Upgrade**](https://memvault-demo-g38n.vercel.app/pricing)
 
 ---
 
@@ -149,9 +149,6 @@ MemVault is Open Core. You can run the stack locally for development or complian
 
 ---
 
-## Contributing
-
-We welcome issues and pull requests! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to set up the local development environment.
 
 ## License
 
